@@ -2,19 +2,40 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>W-4 Estimator</title>
   <link rel="stylesheet" href="bootstrap.min.css">
   <style>
-    body { background-color: #f0f2f5; padding-top: 50px; }
     .step { display: none; }
     .active-step { display: block !important; }
+    .responsive-card { 
+      /* mobile default override */
+      border-width: 0;
+      border-radius: 0;
+      box-shadow: none !important;
+    }
+    .responsive-card-header:first-child {
+      /* mobile default override */
+      border-width: 0;
+      border-radius: 0;
+    }
+    @media (min-width: 576px) {
+      .responsive-card {
+        border-width: var(--bs-card-border-width);
+        border-radius: var(--bs-card-border-radius);
+        box-shadow: var(--bs-box-shadow)!important;
+      }
+      .responsive-card-header:first-child {
+        border-radius: var(--bs-card-inner-border-radius) var(--bs-card-inner-border-radius) 0 0;
+      }
+    }
   </style>
 </head>
 
 <body>
-  <div class="container">
-    <div class="card shadow mx-auto" style="max-width: 800px;">
-      <div class="card-header bg-dark text-white d-flex justify-content-between">
+  <div class="container-sm p-0">
+    <div class="card responsive-card mx-auto my-0 my-sm-4" style="max-width: 720px;">
+      <div class="card-header responsive-card-header bg-dark text-white d-flex justify-content-between">
         <h5 class="mb-0">W-4 Estimator</h5>
         <button id="btnImportData" class="btn btn-sm btn-outline-light">Import Data</button>
         <input type="file" id="fileInput" class="d-none" accept=".json">
@@ -41,7 +62,7 @@
               </div>
 
               <div class="row g-2">
-                <div class="col-md-6"><label class="form-label">Pay Frequency</label>
+                <div class="col-12 col-md-6"><label class="form-label">Pay Frequency</label>
                   <select class="form-select paycheckFreq">
                     <option value="26">Bi-Weekly (26)</option>
                     <option value="24">Semi-Monthly (24)</option>
@@ -49,43 +70,43 @@
                     <option value="12">Monthly (12)</option>
                   </select>
                 </div>
-                <div class="col-md-6">
+                <div class="col-12 col-md-6">
                   <label class="form-label">Paycheck Date</label>
                   <input type="date" class="form-control payDate">
                 </div>
 
-                <div class="col-6">
+                <div class="col-12 col-md-6">
                   <label class="form-label">Current Gross Wages</label>
                   <input type="number" class="form-control currentGrossWages">
                 </div>
-                <div class="col-6">
+                <div class="col-12 col-md-6">
                   <label class="form-label">YTD Gross Wages</label>
                   <input type="number" class="form-control ytdGrossWages">
                 </div>
 
-                <div class="col-6">
+                <div class="col-12 col-md-6">
                   <label class="form-label">Current Pre-Tax Retirement Deductions</label>
                   <input type="number" class="form-control currentPreTaxRetirementDeductions">
                 </div>
-                <div class="col-6">
+                <div class="col-12 col-md-6">
                   <label class="form-label">YTD Pre-Tax Retirement Deductions</label>
                   <input type="number" class="form-control ytdPreTaxRetirementDeductions">
                 </div>
 
-                <div class="col-6">
+                <div class="col-12 col-md-6">
                   <label class="form-label">Current Pre-Tax Medical Deductions</label>
                   <input type="number" class="form-control currentPreTaxMedicalDeductions">
                 </div>
-                <div class="col-6">
+                <div class="col-12 col-md-6">
                   <label class="form-label">YTD Pre-Tax Medical Deductions</label>
                   <input type="number" class="form-control ytdPreTaxMedicalDeductions">
                 </div>
 
-                <div class="col-6">
+                <div class="col-12 col-md-6">
                   <label class="form-label">Current Fed Tax Withheld</label>
                   <input type="number" class="form-control currentFedTaxWithheld">
                 </div>
-                <div class="col-6">
+                <div class="col-12 col-md-6">
                   <label class="form-label">YTD Fed Tax Withheld</label>
                   <input type="number" class="form-control ytdFedTaxWithheld">
                 </div>
@@ -95,8 +116,8 @@
 
           <button id="btnAddJob" class="btn btn-outline-primary btn-sm mb-3">+ Add Another Job</button>
 
-          <div class="d-flex justify-content-end">
-            <button class="btn btn-primary btn-nav" data-next="2">Next: Other Income</button>
+          <div class="d-flex flex-column flex-sm-row justify-content-sm-end">
+            <button class="btn btn-primary btn-nav w-sm-auto" data-next="2">Next: Other Income</button>
           </div>
         </div>
 
@@ -130,9 +151,9 @@
             <input type="number" id="longTermGains" class="form-control">
           </div>
 
-          <div class="d-flex justify-content-between">
-            <button class="btn btn-secondary btn-nav" data-next="1">Back</button>
-            <button class="btn btn-primary btn-nav" data-next="3">Next: Credits</button>
+          <div class="d-flex flex-column flex-sm-row justify-content-sm-between gap-2">
+            <button class="btn btn-secondary btn-nav w-sm-auto" data-next="1">Back</button>
+            <button class="btn btn-primary btn-nav w-sm-auto" data-next="3">Next: Credits</button>
           </div>
         </div>
 
@@ -146,9 +167,9 @@
             <input type="number" id="foreignTaxCredit" class="form-control">
           </div>
 
-          <div class="d-flex justify-content-between">
-            <button class="btn btn-secondary btn-nav" data-next="2">Back</button>
-            <button id="btnCalc" class="btn btn-primary">Calculate Results</button>
+          <div class="d-flex flex-column flex-sm-row justify-content-sm-between gap-2">
+            <button class="btn btn-secondary btn-nav w-sm-auto" data-next="2">Back</button>
+            <button id="btnCalc" class="btn btn-primary w-sm-auto">Calculate Results</button>
           </div>
         </div>
 
@@ -349,12 +370,12 @@
             </ul>
           </div>
 
-          <div class="d-flex justify-content-between">
-            <div>
-              <button class="btn btn-secondary btn-nav" data-next="3">Back</button>
-              <button class="btn btn-secondary btn-nav" data-next="1">Start Over</button>
+          <div class="d-flex flex-column flex-sm-row justify-content-sm-between gap-2">
+            <div class="d-flex flex-column flex-sm-row gap-2">
+              <button class="btn btn-secondary btn-nav w-auto-sm" data-next="3">Back</button>
+              <button class="btn btn-secondary btn-nav w-auto-sm" data-next="1">Start Over</button>
             </div>
-            <button id="btnSaveData" class="btn btn-primary">Save Data</button>
+            <button id="btnSaveData" class="btn btn-primary w-auto-sm">Save Data</button>
           </div>
         </div>
       </div>
