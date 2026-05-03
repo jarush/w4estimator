@@ -1,20 +1,47 @@
+const data = {
+  input: {
+    jobs: [
+    ],
+    otherIncome: {
+      selfEmploymentIncome: null,
+      spouseSelfEmploymentIncome: null,
+      interestIncome: null,
+      shortTermGains: null,
+      longTermGains: null
+    },
+    credits: {
+      foreignTaxCredit: null
+    }
+  },
+  results: {
+  }
+};
+
 $(document).ready(function() {
   // Navigation
   $(document).on('click', '.btn-nav', function() {
     navigateToStep($(this).data('next'));
   });
 
+  // Data Binding  
+  $(document).on('input', '[data-bind]', function () {
+    const $el = $(this);
+    const path = $el.data('bind');
+    const value = parseValue($el);
+    
+    setPath(data, path, value);
+  });
+
   // Step1: Add Job
   $('#btnAddJob').on('click', function() {
-    const newJob = $('.jobEntry:first').clone();
-    newJob.find('input').val('');
-    newJob.find('.remove-job').removeClass('d-none');
-    $('#jobsContainer').append(newJob);
+    addJob();
   });
 
   // Step1: Remove Job
   $(document).on('click', '.remove-job', function() {
-    $(this).closest('.jobEntry').remove();
+    const $job = $(this).closest('.job');
+    const index = $job.index();
+    removeJob(index);
   });
 
   // Step 4: Calculate Results
@@ -35,8 +62,8 @@ $(document).ready(function() {
   $('#fileInput').on('change', function(e) {
     const reader = new FileReader();
     reader.onload = function(event) {
-      const data = JSON.parse(event.target.result);
-      importData(data);
+      const newInput = JSON.parse(event.target.result);
+      importData(newInput);
     };
     reader.readAsText(e.target.files[0]);
   });
@@ -45,6 +72,173 @@ $(document).ready(function() {
 function navigateToStep(stepNumber) {
   $('.step').removeClass('active-step');
   $('#step' + stepNumber).addClass('active-step');
+}
+
+/**
+ * Set a nested value on an object using a dot path.
+ *
+ * @param {Object} obj - Target object to modify
+ * @param {string} path - Dot-separated path (e.g. "jobs.1.income")
+ * @param {*} value - Value to assign at path
+ */
+function setPath(obj, path, value) {
+  const keys = path.split('.');
+
+  let current = obj;
+  for (let i = 0; i < keys.length - 1; i++) {
+    current = current[keys[i]];
+  }
+
+  current[keys[keys.length - 1]] = value;
+}
+
+/**
+ * Get a nested value from an object using a dot path.
+ *
+ * @param {Object} obj - Source object
+ * @param {string} path - Dot-separated path (e.g. "jobs.0.income")
+ * @returns {*} Value at the given path
+ */
+function getPath(obj, path) {
+  const keys = path.split('.');
+
+  let current = obj;
+  for (let i = 0; i < keys.length; i++) {
+    if (!Object.hasOwn(current, keys[i])) {
+      return undefined;
+    }
+    current = current[keys[i]];
+  }
+
+  return current;
+}
+
+/**
+ * Parses a form element value based on its input type.
+ *
+ * @param {jQuery} $el - The jQuery-wrapped input/select/checkbox element
+ * @returns {*} Parsed value (string, number, or boolean)
+ */
+function parseValue($el) {
+  const tag = $el.prop('tagName').toLowerCase();
+  const type = $el.attr('type');
+  const val = $el.val();
+
+  // Select Return whatever type the select value is
+  if (tag === 'select') {
+    return val;
+  }
+
+  // Checkbox 
+  if (type === 'checkbox') {
+    return $el.is(':checked');
+  }
+
+  // Number input
+  if (type === 'number') {
+    return val === '' ? 0 : Number(val);
+  }
+
+  // Default to a string
+  return val;
+}
+
+/**
+ * Adds a new job to data and triggers a full re-render.
+ */
+function addJob() {
+  // Add a job to the input data
+  data.input.jobs.push({
+    person: "Self",
+    paycheckFreq: 26,
+    paycheckDate: null,
+    currentGrossWages: null,
+    ytdGrossWages: null,
+    currentPreTaxRetirementDeductions: null,
+    ytdPreTaxRetirementDeductions: null,
+    currentPreTaxMedicalDeductions: null,
+    ytdPreTaxMedicalDeductions: null,
+    currentFedTaxWithheld: null,
+    ytdFedTaxWithheld: null,
+  });
+  
+  // Re-render all the jovs
+  renderJobs();
+}
+
+/**
+ * Removes a job at the given index and re-renders UI.
+ *
+ * @param {number} index - Index of job to remove
+ */
+function removeJob(index) {
+  // Remove the job at the provided index
+  data.input.jobs.splice(index, 1);
+  
+  // Re-render all the jovs
+  renderJobs();
+}
+
+/**
+ * Renders all jobs from data into the DOM using a template. Fully re-renders
+ * to keep UI in sync with data.
+ */
+function renderJobs() {
+  // Get all the containers that have job specific info
+  const $jobs = $('#jobs');
+  const $grossWagesDetails = $('#gross-wages-details');
+  const $preTaxDeductionsDetails = $('#pre-tax-deductions-details');
+  const $taxibleWagesDetails = $('#taxible-wages-details');
+
+  // Clear all the containers before rendering
+  $jobs.empty();
+  $grossWagesDetails.empty();
+  $preTaxDeductionsDetails.empty();
+  $taxibleWagesDetails.empty();
+
+  // Add all the jobs to the container
+  data.input.jobs.forEach((job, index) => {
+    // Get the HTML template, update placeholders, and append
+    const jobHtml = $('#job-template').html();
+    const $job = $(jobHtml.replaceAll('{{INDEX}}', index));
+
+    // Copy data into the DOM
+    $job.find('[data-bind]').each(function () {
+      const $el = $(this);
+      const path = $el.data('bind');
+
+      const value = getPath(data, path);
+      if (value !== undefined && value !== null) {
+        $el.val(value);
+      }
+    });
+
+    // Add the job DOM to the container      
+    $jobs.append($job);
+    
+    // Get the HTML template, update placeholders, and append
+    const grossWagesDetailHtml = $('#gross-wages-detail-template').html();
+    const $grossWagesDetail = $(grossWagesDetailHtml.replaceAll('{{INDEX}}', index).replaceAll('{{PERSON}}', job.person));
+
+    // Add the DOM to the container      
+    $grossWagesDetails.append($grossWagesDetail);
+    
+    // Get the HTML template, update placeholders, and append
+    const preTaxDeductionsDetailHtml = $('#pre-tax-deductions-detail-template').html();
+    const $preTaxDeductionsDetail = $(preTaxDeductionsDetailHtml.replaceAll('{{INDEX}}', index).replaceAll('{{PERSON}}', job.person));
+
+    // Add the DOM to the container
+    $preTaxDeductionsDetails.append($preTaxDeductionsDetail);
+    
+    // Get the HTML template, update placeholders, and append
+    const taxibleWagesDetailHtml = $('#taxible-wages-detail-template').html();
+    const $taxibleWagesDetail = $(taxibleWagesDetailHtml.replaceAll('{{INDEX}}', index).replaceAll('{{PERSON}}', job.person));
+
+    // Add the DOM to the container      
+    $taxibleWagesDetails.append($taxibleWagesDetail);
+  });
+
+  // FIXME This doesn't update the results if we were on that page
 }
 
 // 2026 Tax Data (Married Filing Jointly)
@@ -173,33 +367,21 @@ function calculateQbiDeduction(selfEmploymentIncome, selfEmploymentAdjustment) {
     return qualifiedBusinessIncome * QBI_RATE;
 }
 
-function getJobProjections() {
-  let results = {
-    jobs: [],
-    totalGrossWages: 0,
-    selfGrossWages: 0,
-    spouseGrossWages: 0,
-    totalPreTaxDeductions: 0,
-    totalFedTaxWithheld: 0,
-    totalTaxibleWages: 0,
-    totalMedicareTaxibleWages: 0
-  };
+function getJobProjections(jobs, results) {
+  results.jobs = [];
+  results.totalGrossWages = 0;
+  results.selfGrossWages = 0;
+  results.spouseGrossWages = 0;
+  results.totalPreTaxDeductions = 0;
+  results.totalFedTaxWithheld = 0;
+  results.totalTaxibleWages = 0;
+  results.totalMedicareTaxibleWages = 0;
+
   const endOfYear = new Date('2026-12-31');
 
-  $('.jobEntry').each(function() {
-      const person = $(this).find('.person').val();
-      const currentGrossWages = parseFloat($(this).find('.currentGrossWages').val()) || 0;
-      const ytdGrossWages = parseFloat($(this).find('.ytdGrossWages').val()) || 0;
-      const currentPreTaxRetirementDeductions = parseFloat($(this).find('.currentPreTaxRetirementDeductions').val()) || 0;
-      const ytdPreTaxRetirementDeductions = parseFloat($(this).find('.ytdPreTaxRetirementDeductions').val()) || 0;
-      const currentPreTaxMedicalDeductions = parseFloat($(this).find('.currentPreTaxMedicalDeductions').val()) || 0;
-      const ytdPreTaxMedicalDeductions = parseFloat($(this).find('.ytdPreTaxMedicalDeductions').val()) || 0;
-      const currentFedTaxWithheld = parseFloat($(this).find('.currentFedTaxWithheld').val()) || 0;
-      const ytdFedTaxWithheld = parseFloat($(this).find('.ytdFedTaxWithheld').val()) || 0;
-      const paycheckFreq = parseInt($(this).find('.paycheckFreq').val());
-      const lastPayDate = new Date($(this).find('.payDate').val());
-      
+  jobs.forEach(job => {
       // Compute the number of days from this pay-date till the next year
+      const lastPayDate = new Date(job.paycheckDate);
       const nextYear = lastPayDate.getFullYear() + 1;
       const jan1NextYear = new Date(nextYear, 0, 1);
       const msPerDay = 1000 * 60 * 60 * 24;
@@ -212,41 +394,31 @@ function getJobProjections() {
           24: 15, // Semi-monthly (Average)
           12: 30  // Monthly (Average)
       };
-      const daysInPeriod = periodDaysMap[paycheckFreq] || 14;
+      const daysInPeriod = periodDaysMap[job.paycheckFreq] || 14;
 
       // Compute the number of paychecks remaining this year
       const paychecksRemaining = Math.floor(daysRemaining / daysInPeriod);
       
       const grossWages =
-            ytdGrossWages
-          + (currentGrossWages * paychecksRemaining);
+            job.ytdGrossWages
+          + (job.currentGrossWages * paychecksRemaining);
       const preTaxRetirementDeductions =
-            ytdPreTaxRetirementDeductions
-          + (currentPreTaxRetirementDeductions * paychecksRemaining);
+            job.ytdPreTaxRetirementDeductions
+          + (job.currentPreTaxRetirementDeductions * paychecksRemaining);
       const preTaxMedicalDeductions =
-            ytdPreTaxMedicalDeductions
-          + (currentPreTaxMedicalDeductions * paychecksRemaining);
+            job.ytdPreTaxMedicalDeductions
+          + (job.currentPreTaxMedicalDeductions * paychecksRemaining);
       const preTaxDeductions =
             preTaxRetirementDeductions
           + preTaxMedicalDeductions;
       const fedTaxWithheld =
-            ytdFedTaxWithheld
-          + (currentFedTaxWithheld * paychecksRemaining);
+            job.ytdFedTaxWithheld
+          + (job.currentFedTaxWithheld * paychecksRemaining);
       
       const taxibleWages = grossWages - preTaxDeductions;
       const medicareTaxibleWages = grossWages - preTaxMedicalDeductions;
       
       results.jobs.push({
-        person: person,
-        currentGrossWages: currentGrossWages,
-        ytdGrossWages: ytdGrossWages,
-        currentPreTaxRetirementDeductions: currentPreTaxRetirementDeductions,
-        ytdPreTaxRetirementDeductions: ytdPreTaxRetirementDeductions,
-        currentPreTaxMedicalDeductions: currentPreTaxMedicalDeductions,
-        ytdPreTaxMedicalDeductions: ytdPreTaxMedicalDeductions,
-        currentFedTaxWithheld: currentFedTaxWithheld,
-        ytdFedTaxWithheld: ytdFedTaxWithheld,
-        paycheckFreq: paycheckFreq,
         lastPayDate: lastPayDate,
         paychecksRemaining: paychecksRemaining,
         grossWages: grossWages,
@@ -264,22 +436,20 @@ function getJobProjections() {
       results.totalTaxibleWages += taxibleWages;
       results.totalMedicareTaxibleWages += medicareTaxibleWages;
       
-      if (person == "Self") {
+      if (job.person == "Self") {
         results.selfGrossWages += grossWages;
       } else {
         results.spouseGrossWages += grossWages;
       }
   });
-
-  return results;
 }
 
 /**
  * Calculates the final W-4 adjustments needed for the primary job.
  */
-function calculateW4Adjustments(results) {
-  const job1 = results.jobs[0];
-  const otherIncome = results.totalOtherIncome;
+function calculateW4Adjustments() {
+  const inputJob1 = data.input.jobs[0];
+  const resultsJob1 = data.results.jobs[0];
 
   /*
    * Calculate the tax for job1 using the Married Filing Separately (which is
@@ -287,112 +457,85 @@ function calculateW4Adjustments(results) {
    * that by the paycheck frequency to get the new estimated withholding.  
    */
   const estimatedNewWithholding = calculateFederalTax(
-      Math.max(0, job1.taxibleWages + otherIncome - TAX_2026.mfsStandardDeduction), TAX_2026.mfsBrackets)
-      / job1.paycheckFreq;
+      Math.max(0, resultsJob1.taxibleWages + data.results.totalOtherIncome - TAX_2026.mfsStandardDeduction), TAX_2026.mfsBrackets)
+      / inputJob1.paycheckFreq;
 
   // Calculate projected withholding for all other jobs
   let otherJobsAnnualWithholding = 0;
-  for (let i = 1; i < results.jobs.length; i++) {
-    otherJobsAnnualWithholding += results.jobs[i].fedTaxWithheld;
+  for (let i = 1; i < data.results.jobs.length; i++) {
+    otherJobsAnnualWithholding += data.results.jobs[i].fedTaxWithheld;
   }
 
   // Find the gap: Total Owed - (Other Jobs + Job 1's new projected withholding)
   const projectedTotalWithholding = otherJobsAnnualWithholding + 
-      (job1.fedTaxWithheld - (job1.currentFedTaxWithheld * job1.paychecksRemaining)) +
-      (estimatedNewWithholding * job1.paychecksRemaining);
+      (resultsJob1.fedTaxWithheld - (inputJob1.currentFedTaxWithheld * resultsJob1.paychecksRemaining)) +
+      (estimatedNewWithholding * resultsJob1.paychecksRemaining);
 
-  const annualGap = results.totalTaxes - projectedTotalWithholding;
-  results.extraPerCheck = Math.max(0, Math.ceil(annualGap / job1.paychecksRemaining));
+  const annualGap = data.results.totalTaxes - projectedTotalWithholding;
+  data.results.w4WxtraPerCheck = Math.max(0, Math.ceil(annualGap / resultsJob1.paychecksRemaining));
 }
 
 function performFullCalculation() {
-  const results = getJobProjections();
+  data.results = {};
   
-  results.selfEmploymentIncome = parseFloat($('#selfEmploymentIncome').val()) || 0;
-  results.spouseSelfEmploymentIncome = parseFloat($('#spouseSelfEmploymentIncome').val()) || 0;
-  results.interestIncome = parseFloat($('#interestIncome').val()) || 0;
-  results.shortTermGains = parseFloat($('#shortTermGains').val()) || 0;
-  results.longTermGains = parseFloat($('#longTermGains').val()) || 0;
-  results.totalOtherIncome = results.selfEmploymentIncome
-      + results.spouseSelfEmploymentIncome
-      + results.interestIncome
-      + results.shortTermGains
-      + results.longTermGains; // FIXME Not taxed at tax bracket, 15%?
+  getJobProjections(data.input.jobs, data.results);
+  
+  data.results.totalOtherIncome =
+        data.input.otherIncome.selfEmploymentIncome
+      + data.input.otherIncome.spouseSelfEmploymentIncome
+      + data.input.otherIncome.interestIncome
+      + data.input.otherIncome.shortTermGains
+      + data.input.otherIncome.longTermGains; // FIXME Not taxed at tax bracket, 15%?
 
-  results.selfEmploymentTax =
-        calculateSelfEmploymentTax(results.selfEmploymentIncome, results.selfGrossWages)
-      + calculateSelfEmploymentTax(results.spouseSelfEmploymentIncome, results.spouseGrossWages);
+  data.results.selfEmploymentTax =
+        calculateSelfEmploymentTax(data.input.otherIncome.selfEmploymentIncome, data.results.selfGrossWages)
+      + calculateSelfEmploymentTax(data.input.otherIncome.spouseSelfEmploymentIncome, data.results.spouseGrossWages);
 
-  results.selfEmploymentAdjustment = results.selfEmploymentTax / 2;
-  results.adjustments = results.selfEmploymentAdjustment;
+  data.results.selfEmploymentAdjustment = data.results.selfEmploymentTax / 2;
+  data.results.adjustments = data.results.selfEmploymentAdjustment;
 
-  results.agi =
-        results.totalTaxibleWages
-      + results.totalOtherIncome
-      - results.adjustments;
+  data.results.agi =
+        data.results.totalTaxibleWages
+      + data.results.totalOtherIncome
+      - data.results.adjustments;
   
-  results.standardDeduction = TAX_2026.mfjStandardDeduction;
-  results.qbiDeduction = calculateQbiDeduction(
-      results.selfEmploymentIncome + results.spouseSelfEmploymentIncome,
-      results.selfEmploymentAdjustment);
-  results.deductions = results.standardDeduction + results.qbiDeduction;
-  
-  results.taxableIncome = Math.max(0, results.agi - results.deductions);
-  
-  results.incomeTax = calculateFederalTax(results.taxableIncome, TAX_2026.mfjBrackets);
-  results.netInvestmentIncomeTax = calculateNetInvestmentTaxes(
-      results.agi,
-      results.interestIncome + results.shortTermGains + results.longTermGains);
-  results.additionalMedicareTax = calculateAdditionalMedicareTax(
-      results.totalMedicareTaxibleWages,
-      results.selfEmploymentIncome + results.spouseSelfEmploymentIncome);
-  results.taxesBeforeCredits = results.incomeTax
-      + results.selfEmploymentTax
-      + results.netInvestmentIncomeTax
-      + results.additionalMedicareTax;
+  data.results.standardDeduction = TAX_2026.mfjStandardDeduction;
 
-  results.foreignTaxCredit = parseFloat($('#foreignTaxCredit').val()) || 0;
-  results.credits = results.foreignTaxCredit;
-  
-  results.totalTaxes = Math.max(0, results.taxesBeforeCredits - results.credits);
-  results.difference = results.totalFedTaxWithheld - results.totalTaxes;
-  
-  calculateW4Adjustments(results);
+  const totalSelfEmploymentIncome =
+        data.input.otherIncome.selfEmploymentIncome
+      + data.input.otherIncome.spouseSelfEmploymentIncome;
+  data.results.qbiDeduction = calculateQbiDeduction(totalSelfEmploymentIncome,
+      data.results.selfEmploymentAdjustment);
 
-  renderResults(results);
+  data.results.deductions = data.results.standardDeduction + data.results.qbiDeduction;
+  
+  data.results.taxableIncome = Math.max(0, data.results.agi - data.results.deductions);
+  
+  data.results.incomeTax = calculateFederalTax(data.results.taxableIncome, TAX_2026.mfjBrackets);
+  const investmentIncome =
+        data.input.otherIncome.interestIncome
+      + data.input.otherIncome.shortTermGains
+      + data.input.otherIncome.longTermGains;
+  data.results.netInvestmentIncomeTax = calculateNetInvestmentTaxes(data.results.agi,
+      investmentIncome);
+  data.results.additionalMedicareTax = calculateAdditionalMedicareTax(
+      data.results.totalMedicareTaxibleWages,
+      data.input.otherIncome.selfEmploymentIncome + data.input.otherIncome.spouseSelfEmploymentIncome);
+  data.results.taxesBeforeCredits = data.results.incomeTax
+      + data.results.selfEmploymentTax
+      + data.results.netInvestmentIncomeTax
+      + data.results.additionalMedicareTax;
+
+  data.results.credits = data.input.credits.foreignTaxCredit;
+  
+  data.results.totalTaxes = Math.max(0, data.results.taxesBeforeCredits - data.results.credits);
+  data.results.difference = data.results.totalFedTaxWithheld - data.results.totalTaxes;
+  
+  calculateW4Adjustments();
+
+  renderResults();
 
   navigateToStep(4);
-}
-
-/**
- * Calculates the final W-4 adjustments needed for the primary job.
- */
-function calculateW4Adjustments(results) {
-  const job1 = results.jobs[0];
-  const otherIncome = results.totalOtherIncome;
-
-  /*
-   * Calculate the tax for job1 using the Married Filing Separately (which is
-   * what the W4 Box 2(c) does). Divide that tax by the paycheck frequency to
-   * that by the paycheck frequency to get the new estimated withholding.  
-   */
-  const estimatedNewWithholding = calculateFederalTax(
-      Math.max(0, job1.taxibleWages + otherIncome - TAX_2026.mfsStandardDeduction), TAX_2026.mfsBrackets)
-      / job1.paycheckFreq;
-
-  // Calculate projected withholding for all other jobs
-  let otherJobsAnnualWithholding = 0;
-  for (let i = 1; i < results.jobs.length; i++) {
-      otherJobsAnnualWithholding += results.jobs[i].fedTaxWithheld;
-  }
-
-  // Find the gap: Total Owed - (Other Jobs + Job 1's new projected withholding)
-  const projectedTotalWithholding = otherJobsAnnualWithholding + 
-      (job1.fedTaxWithheld - (job1.currentFedTaxWithheld * job1.paychecksRemaining)) +
-      (estimatedNewWithholding * job1.paychecksRemaining);
-
-  const annualGap = results.totalTaxes - projectedTotalWithholding;
-  results.extraPerCheck = Math.max(0, Math.ceil(annualGap / job1.paychecksRemaining));
 }
 
 /**
@@ -415,73 +558,22 @@ $.fn.currency = function(value) {
   return this.text(toCurrency(value));
 };
 
-function renderResults(results) {
-  $('#resultGrossWages').currency(results.totalGrossWages);
-  $('#resultPreTaxDeductions').currency(results.totalPreTaxDeductions);
-  $('#resultTaxibleWages').currency(results.totalTaxibleWages);
-  $('#resultOtherIncome').currency(results.totalOtherIncome);
-  $('#resultSelfEmploymentIncome').currency(results.selfEmploymentIncome);
-  $('#resultSpouseSelfEmploymentIncome').currency(results.spouseSelfEmploymentIncome);
-  $('#resultInterestIncome').currency(results.interestIncome);
-  $('#resultShortTermGains').currency(results.shortTermGains);
-  $('#resultLongTermGains').currency(results.longTermGains);
-  $('#resultAdjustments').currency(results.adjustments);
-  $('#resultSelfEmploymentAdjustment').currency(results.selfEmploymentAdjustment);
-  $('#resultAGI').currency(results.agi);
-  $('#resultDeductions').currency(results.deductions);
-  $('#resultStandardDeduction').currency(results.standardDeduction);
-  $('#resultQbiDeduction').currency(results.qbiDeduction);
-  $('#resultTaxableIncome').currency(results.taxableIncome);
-  $('#resultTaxWithheld').currency(results.totalFedTaxWithheld);
-  $('#resultIncomeTax').currency(results.incomeTax);
-  $('#resultSelfEmploymentTax').currency(results.selfEmploymentTax);
-  $('#resultNetInvestmentIncomeTax').currency(results.netInvestmentIncomeTax);
-  $('#resultAdditionalMedicareTax').currency(results.additionalMedicareTax);
-  $('#resultTaxesBeforeCredits').currency(results.taxesBeforeCredits);
-  $('#resultCredits').currency(results.credits);
-  $('#resultTotalTaxes').currency(results.totalTaxes);
-  $('#resultDifference').currency(Math.abs(results.difference));
+function renderResults() {
+  $(document).find('span[data-bind]').each(function () {
+    const $el = $(this);
+    const path = $el.data('bind');
 
-  // Add details from each job
-  const $grossWagesDetailsListGroup = $('#grossWagesDetails');
-  const $preTaxDeductionsListGroup = $('#preTaxDeductionsDetails');
-  const $taxibleWagesListGroup = $('#taxibleWagesDetails');
-  $grossWagesDetailsListGroup.empty();
-  $preTaxDeductionsListGroup.empty();
-  $taxibleWagesListGroup.empty();
-  results.jobs.forEach((job, index) => {
-    // Append rows using template literals
-    $grossWagesDetailsListGroup.append(`
-      <li class="list-group-item d-flex justify-content-between">
-        <span class="ms-4">Job ${index + 1} (${job.person}) Gross Wages</span>
-        <span>${toCurrency(job.grossWages)}</span>
-      </li>
-    `);
-    $preTaxDeductionsListGroup.append(`
-      <li class="list-group-item d-flex justify-content-between">
-        <span class="ms-4">Job ${index + 1} (${job.person}) Pre-Tax Retirement Deductions</span>
-        <span>${toCurrency(job.preTaxRetirementDeductions)}</span>
-      </li>
-      <li class="list-group-item d-flex justify-content-between">
-        <span class="ms-4">Job ${index + 1} (${job.person}) Pre-Tax Medical Deductions</span>
-        <span>${toCurrency(job.preTaxMedicalDeductions)}</span>
-      </li>
-    `);
-    $taxibleWagesListGroup.append(`
-      <li class="list-group-item d-flex justify-content-between">
-        <span class="ms-4">Job ${index + 1} (${job.person}) Taxible Wages</span>
-        <span>${toCurrency(job.taxibleWages)}</span>
-      </li>
-    `);
+    const value = getPath(data, path);
+
+    if (value !== undefined && value !== null) {
+      $el.currency(value);
+    }
   });
-
-  $('#w4Step4a').currency(results.totalOtherIncome);
-  $('#w4Step4c').currency(results.extraPerCheck);
 
   // Update the UI to reflect a refund or taxes owed
   const $card = $('#resultStatusCard');
   const $text = $('#resultStatusText');
-  if (results.difference >= 0) {
+  if (data.results.difference >= 0) {
     $text.text('Estimated Tax Refund');
     $card.removeClass('bg-danger').addClass('bg-success');
   } else {
@@ -490,93 +582,40 @@ function renderResults(results) {
   }
 }
 
+/**
+ * Downloads current data as a JSON file.
+ */
 function saveData() {
-  const jobs = [];
-  $('.jobEntry').each(function() {
-    jobs.push({
-      person: $(this).find('.person').val(),
-      paycheckFreq: $(this).find('.paycheckFreq').val(),
-      payDate: $(this).find('.payDate').val(),
-      currentGrossWages: $(this).find('.currentGrossWages').val(),
-      ytdGrossWages: $(this).find('.ytdGrossWages').val(),
-      currentPreTaxRetirementDeductions: $(this).find('.currentPreTaxRetirementDeductions').val(),
-      ytdPreTaxRetirementDeductions: $(this).find('.ytdPreTaxRetirementDeductions').val(),
-      currentPreTaxMedicalDeductions: $(this).find('.currentPreTaxMedicalDeductions').val(),
-      ytdPreTaxMedicalDeductions: $(this).find('.ytdPreTaxMedicalDeductions').val(),
-      currentFedTaxWithheld: $(this).find('.currentFedTaxWithheld').val(),
-      ytdFedTaxWithheld: $(this).find('.ytdFedTaxWithheld').val()
-    });
-  });
-
-  const data = {
-    jobs: jobs,
-    otherIncome: {
-      selfEmploymentIncome: $('#selfEmploymentIncome').val(),
-      spouseSelfEmploymentIncome: $('#spouseSelfEmploymentIncome').val(),
-      interestIncome: $('#interestIncome').val(),
-      shortTermGains: $('#shortTermGains').val(),
-      longTermGains: $('#longTermGains').val()
-    },
-    credits: {
-      foreignTaxCredit: $('#foreignTaxCredit').val(),
-    }
-  };
-
   // Generate the date stamp (YYYY-MM-DD)
   const now = new Date();
   const dateStamp = now.toISOString().split('T')[0]; // Result: "2026-05-02"
 
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `w4-data-${dateStamp}.json`; 
   a.click();
 }
 
-function importData(data) {
-  // Populate Jobs
-  if (data.jobs && data.jobs.length > 0) {
-    // Store a copy of the job entry template
-    const jobTemplate = $('.jobEntry:first').clone();
-    
-    // Clear current jobs and rebuild
-    $('#jobsContainer').empty();
-    
-    // Add the jobs
-    data.jobs.forEach((job, index) => {
-      // Copy the job template and populate
-      const $newJob = jobTemplate.clone();
-      $newJob.find('.person').val(job.person);
-      $newJob.find('.paycheckFreq').val(job.paycheckFreq);
-      $newJob.find('.payDate').val(job.payDate);
-      $newJob.find('.currentGrossWages').val(job.currentGrossWages);
-      $newJob.find('.ytdGrossWages').val(job.ytdGrossWages);
-      $newJob.find('.currentPreTaxRetirementDeductions').val(job.currentPreTaxRetirementDeductions);
-      $newJob.find('.ytdPreTaxRetirementDeductions').val(job.ytdPreTaxRetirementDeductions);
-      $newJob.find('.currentPreTaxMedicalDeductions').val(job.currentPreTaxMedicalDeductions);
-      $newJob.find('.ytdPreTaxMedicalDeductions').val(job.ytdPreTaxMedicalDeductions);
-      $newJob.find('.currentFedTaxWithheld').val(job.currentFedTaxWithheld);
-      $newJob.find('.ytdFedTaxWithheld').val(job.ytdFedTaxWithheld);
+/**
+ * Replaces data and re-renders UI.
+ *
+ * @param {Object} newInput - Parsed JSON data
+ */
+function importData(newInput) {
+  Object.assign(data.input, newInput);
+  
+  renderJobs(data);
 
-      if (index > 0) {
-        $newJob.find('.remove-job').removeClass('d-none');
-      }
+  $(document).find('[data-bind]').each(function () {
+    const $el = $(this);
+    const path = $el.data('bind');
 
-      $('#jobsContainer').append($newJob);
-    });
-  }
+    const value = getPath(data, path);
 
-  // Populate Other Income
-  if (data.otherIncome) {
-    $('#selfEmploymentIncome').val(data.otherIncome.selfEmploymentIncome);
-    $('#spouseSelfEmploymentIncome').val(data.otherIncome.spouseSelfEmploymentIncome);
-    $('#interestIncome').val(data.otherIncome.interestIncome);
-    $('#shortTermGains').val(data.otherIncome.shortTermGains);
-    $('#longTermGains').val(data.otherIncome.longTermGains);
-  }
-
-  // Populate Credits
-  if (data.credits) {
-    $('#foreignTaxCredit').val(data.credits.foreignTaxCredit);
-  }
+    if (value !== undefined && value !== null) {
+      $el.val(value);
+    }
+  });
 }

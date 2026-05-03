@@ -47,23 +47,24 @@
           <h5 class="mb-3 text-primary">Step 1: Work Income</h5>
           <p>Enter information from your latest paycheck for all jobs.</p>
 
-          <div id="jobsContainer">
-            <!-- Template Job Entry -->
-            <div class="jobEntry border p-3 mb-3 bg-light rounded position-relative">
-              <div class="d-flex justify-content-between align-items-center mb-3">
-                <div class="d-flex align-items-center">
-                  <label class="me-2">Whose Job?</label>
-                  <select class="form-select form-select-sm person" style="width: auto;">
+          <!-- Template Job Entry -->
+          <template id="job-template">
+            <div class="job border p-3 mb-3 bg-light rounded position-relative">
+              <div class="row g-2">
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Whose Job?</label>
+                  <select class="form-select" data-bind="input.jobs.{{INDEX}}.person">
                     <option value="Self">Self</option>
                     <option value="Spouse">Spouse</option>
                   </select>
                 </div>
-                <button class="btn btn-sm btn-outline-danger remove-job d-none">Remove</button>
-              </div>
+                <div class="col-12 col-md-6">
+                  <!-- Empty -->
+                </div>
 
-              <div class="row g-2">
-                <div class="col-12 col-md-6"><label class="form-label">Pay Frequency</label>
-                  <select class="form-select paycheckFreq">
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Pay Frequency</label>
+                  <select class="form-select" data-bind="input.jobs.{{INDEX}}.paycheckFreq">
                     <option value="26">Bi-Weekly (26)</option>
                     <option value="24">Semi-Monthly (24)</option>
                     <option value="52">Weekly (52)</option>
@@ -72,46 +73,55 @@
                 </div>
                 <div class="col-12 col-md-6">
                   <label class="form-label">Paycheck Date</label>
-                  <input type="date" class="form-control payDate">
+                  <input type="date" class="form-control" data-bind="input.jobs.{{INDEX}}.paycheckDate">
                 </div>
 
                 <div class="col-12 col-md-6">
                   <label class="form-label">Current Gross Wages</label>
-                  <input type="number" class="form-control currentGrossWages">
+                  <input type="number" class="form-control" data-bind="input.jobs.{{INDEX}}.currentGrossWages">
                 </div>
                 <div class="col-12 col-md-6">
                   <label class="form-label">YTD Gross Wages</label>
-                  <input type="number" class="form-control ytdGrossWages">
+                  <input type="number" class="form-control" data-bind="input.jobs.{{INDEX}}.ytdGrossWages">
                 </div>
 
                 <div class="col-12 col-md-6">
                   <label class="form-label">Current Pre-Tax Retirement Deductions</label>
-                  <input type="number" class="form-control currentPreTaxRetirementDeductions">
+                  <input type="number" class="form-control" data-bind="input.jobs.{{INDEX}}.currentPreTaxRetirementDeductions">
                 </div>
                 <div class="col-12 col-md-6">
                   <label class="form-label">YTD Pre-Tax Retirement Deductions</label>
-                  <input type="number" class="form-control ytdPreTaxRetirementDeductions">
+                  <input type="number" class="form-control" data-bind="input.jobs.{{INDEX}}.ytdPreTaxRetirementDeductions">
                 </div>
 
                 <div class="col-12 col-md-6">
                   <label class="form-label">Current Pre-Tax Medical Deductions</label>
-                  <input type="number" class="form-control currentPreTaxMedicalDeductions">
+                  <input type="number" class="form-control" data-bind="input.jobs.{{INDEX}}.currentPreTaxMedicalDeductions">
                 </div>
                 <div class="col-12 col-md-6">
                   <label class="form-label">YTD Pre-Tax Medical Deductions</label>
-                  <input type="number" class="form-control ytdPreTaxMedicalDeductions">
+                  <input type="number" class="form-control" data-bind="input.jobs.{{INDEX}}.ytdPreTaxMedicalDeductions">
                 </div>
 
                 <div class="col-12 col-md-6">
                   <label class="form-label">Current Fed Tax Withheld</label>
-                  <input type="number" class="form-control currentFedTaxWithheld">
+                  <input type="number" class="form-control" data-bind="input.jobs.{{INDEX}}.currentFedTaxWithheld">
                 </div>
                 <div class="col-12 col-md-6">
                   <label class="form-label">YTD Fed Tax Withheld</label>
-                  <input type="number" class="form-control ytdFedTaxWithheld">
+                  <input type="number" class="form-control" data-bind="input.jobs.{{INDEX}}.ytdFedTaxWithheld">
+                </div>
+
+                <div class="col-24 col-md-12">
+                  <div class="d-flex flex-column flex-sm-row justify-content-sm-end">
+                    <button class="btn btn-sm btn-outline-danger remove-job">Remove Job</button>
+                  </div>
                 </div>
               </div>
             </div>
+          </template>
+
+          <div id="jobs" class="mb-3">
           </div>
 
           <button id="btnAddJob" class="btn btn-outline-primary btn-sm mb-3">+ Add Another Job</button>
@@ -128,27 +138,27 @@
 
           <div class="mb-3">
             <label class="form-label">Your Self-Employment Income</label>
-            <input type="number" id="selfEmploymentIncome" class="form-control">
+            <input type="number" class="form-control" data-bind="input.otherIncome.selfEmploymentIncome">
           </div>
 
           <div class="mb-3">
             <label class="form-label">Spouse's Self-Employment Income</label>
-            <input type="number" id="spouseSelfEmploymentIncome" class="form-control">
+            <input type="number" class="form-control" data-bind="input.otherIncome.spouseSelfEmploymentIncome">
           </div>
 
           <div class="mb-3">
             <label class="form-label">Interest / Ordinary Dividends</label>
-            <input type="number" id="interestIncome" class="form-control">
+            <input type="number" class="form-control" data-bind="input.otherIncome.interestIncome">
           </div>
 
           <div class="mb-3">
             <label class="form-label">Short-Term Capital Gains/Losses</label>
-            <input type="number" id="shortTermGains" class="form-control">
+            <input type="number" class="form-control" data-bind="input.otherIncome.shortTermGains">
           </div>
 
           <div class="mb-4">
             <label class="form-label">Long-Term Capital Gains/Losses</label>
-            <input type="number" id="longTermGains" class="form-control">
+            <input type="number" class="form-control" data-bind="input.otherIncome.longTermGains">
           </div>
 
           <div class="d-flex flex-column flex-sm-row justify-content-sm-between gap-2">
@@ -164,7 +174,7 @@
 
           <div class="mb-3">
             <label class="form-label">Foreign Tax Credit</label>
-            <input type="number" id="foreignTaxCredit" class="form-control">
+            <input type="number" class="form-control" data-bind="input.credits.foreignTaxCredit">
           </div>
 
           <div class="d-flex flex-column flex-sm-row justify-content-sm-between gap-2">
@@ -179,7 +189,7 @@
           <div id="resultStatusCard" class="card mb-4 shadow-sm border-0">
             <div class="card-body text-center text-white">
               <h6 id="resultStatusText" class="text-uppercase fw-bold mb-1">Estimated Refund</h6>
-              <h2 id="resultDifference" class="display-5 fw-bold mb-0">$0</h2>
+              <h2 class="display-5 fw-bold mb-0"><span data-bind="results.difference"></span></h2>
             </div>
           </div>
 
@@ -194,84 +204,107 @@
             <ul class="list-group list-group-flush">
               <li class="list-group-item d-flex justify-content-between">
                 <span>Total Gross Wages</span>
-                <span id="resultGrossWages">$0</span>
+                <span data-bind="results.totalGrossWages"></span>
               </li>
               <!-- Expandable Content -->
               <div class="incomeDetails collapse">
-                <ul class="list-group list-group-flush small" id="grossWagesDetails">
+                <template id="gross-wages-detail-template">
+                  <li class="list-group-item d-flex justify-content-between">
+                    <span class="ms-4">Job {{INDEX}} ({{PERSON}}) Gross Wages</span>
+                    <span data-bind="results.jobs.{{INDEX}}.grossWages"></span>
+                  </li>
+                </template>
+                <ul class="list-group list-group-flush small" id="gross-wages-details">
                   <!-- JavaScript injects job rows here -->
                 </ul>
               </div>
 
               <li class="list-group-item d-flex justify-content-between">
                 <span>Pre-Tax Deductions</span>
-                <span id="resultPreTaxDeductions">$0</span>
+                <span data-bind="results.totalPreTaxDeductions"></span>
               </li>
               <!-- Expandable Content -->
               <div class="incomeDetails collapse">
-                <ul class="list-group list-group-flush small" id="preTaxDeductionsDetails">
+                <template id="pre-tax-deductions-detail-template">
+                  <li class="list-group-item d-flex justify-content-between">
+                    <span class="ms-4">Job {{INDEX}} ({{PERSON}}) Pre-Tax Retirement Deductions</span>
+                    <span data-bind="results.jobs.{{INDEX}}.preTaxRetirementDeductions"></span>
+                  </li>
+                  <li class="list-group-item d-flex justify-content-between">
+                    <span class="ms-4">Job {{INDEX}} ({{PERSON}}) Pre-Tax Medical Deductions</span>
+                    <span data-bind="results.jobs.{{INDEX}}.preTaxMedicalDeductions"></span>
+                  </li>
+                </template>
+                <ul class="list-group list-group-flush small" id="pre-tax-deductions-details">
                   <!-- JavaScript injects job rows here -->
                 </ul>
               </div>
 
               <li class="list-group-item d-flex justify-content-between">
                 <span>Total Taxable Wages</span>
-                <span id="resultTaxibleWages">$0</span>
+                <span data-bind="results.totalTaxibleWages"></span>
               </li>
               <!-- Expandable Content -->
               <div class="incomeDetails collapse">
-                <ul class="list-group list-group-flush small" id="taxibleWagesDetails">
+                <template id="taxible-wages-detail-template">
+                  <li class="list-group-item d-flex justify-content-between">
+                    <span class="ms-4">Job {{INDEX}} ({{PERSON}}) Taxible Wages</span>
+                    <span data-bind="results.jobs.{{INDEX}}.taxibleWages"></span>
+                  </li>
+                </template>
+
+                <ul class="list-group list-group-flush small" id="taxible-wages-details">
                   <!-- JavaScript injects job rows here -->
                 </ul>
               </div>
 
               <li class="list-group-item d-flex justify-content-between">
                 <span>Other Income (Interest/Capital Gains)</span>
-                <span id="resultOtherIncome">$0</span>
+                <span data-bind="results.totalOtherIncome"></span>
               </li>
               <!-- Expandable Content -->
               <div class="incomeDetails collapse">
                 <ul class="list-group list-group-flush small">
                   <li class="list-group-item d-flex justify-content-between">
                     <span class="ms-4">Your Self-Employment Income</span>
-                    <span id="resultSelfEmploymentIncome"></span>
+                    <span data-bind="input.otherIncome.selfEmploymentIncome"></span>
                   </li>
                   <li class="list-group-item d-flex justify-content-between">
                     <span class="ms-4">Spouse's Self-Employment Income</span>
-                    <span id="resultSpouseSelfEmploymentIncome"></span>
+                    <span data-bind="input.otherIncome.spouseSelfEmploymentIncome"></span>
                   </li>
                   <li class="list-group-item d-flex justify-content-between">
                     <span class="ms-4">Interest Income</span>
-                    <span id="resultInterestIncome"></span>
+                    <span data-bind="input.otherIncome.interestIncome"></span>
                   </li>
                   <li class="list-group-item d-flex justify-content-between">
                     <span class="ms-4">Short-Term Capital Gains/Losses</span>
-                    <span id="resultShortTermGains"></span>
+                    <span data-bind="input.otherIncome.shortTermGains"></span>
                   </li>
                   <li class="list-group-item d-flex justify-content-between">
                     <span class="ms-4">Long-Term Capital Gains/Losses</span>
-                    <span id="resultLongTermGains"></span>
+                    <span data-bind="input.otherIncome.longTermGains"></span>
                   </li>
                 </ul>
               </div>
 
               <li class="list-group-item d-flex justify-content-between">
                 <span>Adjustments</span>
-                <span id="resultAdjustments">$0</span>
+                <span data-bind="results.adjustments"></span>
               </li>
               <!-- Expandable Content -->
               <div class="incomeDetails collapse">
                 <ul class="list-group list-group-flush small">
                   <li class="list-group-item d-flex justify-content-between">
                     <span class="ms-4">Self-Employment Adjustment</span>
-                    <span id="resultSelfEmploymentAdjustment"></span>
+                    <span data-bind="results.selfEmploymentAdjustment"></span>
                   </li>
                 </ul>
               </div>
 
               <li class="list-group-item d-flex justify-content-between bg-light fw-bold">
                 <span>Adjusted Gross Income (AGI)</span>
-                <span id="resultAGI">$0</span>
+                <span data-bind="results.agi"></span>
               </li>
             </ul>
           </div>
@@ -288,66 +321,66 @@
             <ul class="list-group list-group-flush">
               <li class="list-group-item d-flex justify-content-between">
                 <span>Deductions</span>
-                <span id="resultDeductions">$0</span>
+                <span data-bind="results.deductions"></span>
               </li>
               <!-- Expandable Content -->
               <div class="taxDetails collapse">
                 <ul class="list-group list-group-flush small">
                   <li class="list-group-item d-flex justify-content-between">
                     <span class="ms-4">Standard Deduction</span>
-                    <span id="resultStandardDeduction">$0</span>
+                    <span data-bind="results.standardDeduction"></span>
                   </li>
                   <li class="list-group-item d-flex justify-content-between">
                     <span class="ms-4">QBI Deduction</span>
-                    <span id="resultQbiDeduction">$0</span>
+                    <span data-bind="results.qbiDeduction"></span>
                   </li>
                 </ul>
               </div>
 
               <li class="list-group-item d-flex justify-content-between">
                 <span>Taxable Income (After Deduction)</span>
-                <span id="resultTaxableIncome">$0</span>
+                <span data-bind="results.taxableIncome"></span>
               </li>
 
               <li class="list-group-item d-flex justify-content-between">
                 <span>Taxes Before Credits</span>
-                <span id="resultTaxesBeforeCredits">$0</span>
+                <span data-bind="results.taxesBeforeCredits"></span>
               </li>
               <!-- Expandable Content -->
               <div class="taxDetails collapse">
                 <ul class="list-group list-group-flush small">
                   <li class="list-group-item d-flex justify-content-between">
                     <span class="ms-4">Taxes on Wages</span>
-                    <span id="resultIncomeTax">$0</span>
+                    <span data-bind="results.incomeTax"></span>
                   </li>
                   <li class="list-group-item d-flex justify-content-between">
                     <span class="ms-4">Self-Employment Tax</span>
-                    <span id="resultSelfEmploymentTax">$0</span>
+                    <span data-bind="results.selfEmploymentTax"></span>
                   </li>
                   <li class="list-group-item d-flex justify-content-between">
                     <span class="ms-4">Net Investment Income Tax</span>
-                    <span id="resultNetInvestmentIncomeTax">$0</span>
+                    <span data-bind="results.netInvestmentIncomeTax"></span>
                   </li>
                   <li class="list-group-item d-flex justify-content-between">
                     <span class="ms-4">Additional Medicare Tax</span>
-                    <span id="resultAdditionalMedicareTax">$0</span>
+                    <span data-bind="results.additionalMedicareTax"></span>
                   </li>
                 </ul>
               </div>
 
               <li class="list-group-item d-flex justify-content-between">
                 <span>Total Credits</span>
-                <span id="resultCredits">$0</span>
+                <span data-bind="results.credits"></span>
               </li>
 
               <li class="list-group-item d-flex justify-content-between bg-light fw-bold">
                 <span>Total Tax Liability</span>
-                <span id="resultTotalTaxes">$0</span>
+                <span data-bind="results.totalTaxes"></span>
               </li>
 
               <li class="list-group-item d-flex justify-content-between bg-light fw-bold">
                 <span>Total Payments/Withholding</span>
-                <span id="resultTaxWithheld">$0</span>
+                <span data-bind="results.taxWithheld"></span>
               </li>
             </ul>
           </div>
@@ -361,11 +394,11 @@
               </li>
               <li class="list-group-item d-flex justify-content-between">
                 <span>Step 4(a): Other Income</span>
-                <span id="w4Step4a">$0</span>
+                <span data-bind="results.totalOtherIncome"></span>
               </li>
               <li class="list-group-item d-flex justify-content-between">
                 <span>Step 4(c): Extra Withholding</span>
-                <span id="w4Step4c">$0 / check</span>
+                <span data-bind="results.w4WxtraPerCheck"></span>
               </li>
             </ul>
           </div>
