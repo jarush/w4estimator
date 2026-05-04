@@ -42,16 +42,46 @@
       </div>
 
       <div class="card-body">
-        <!-- Step 1: Work Income -->
+        <!-- General Info -->
         <div id="step1" class="step active-step">
-          <h5 class="mb-3 text-primary">Step 1: Work Income</h5>
+          <h5 class="mb-3 text-primary">General Info</h5>
+          <p>Enter some general info filing status and age.</p>
+
+          <div class="mb-3">
+            <label class="form-label">Filing Status</label>
+            <select class="form-select" data-bind="input.filingStatus">
+              <option value="single">Single</option>
+              <option value="mfj">Married Filing Jointly</option>
+              <option value="mfs">Married Filing Separately</option>
+              <option value="hoh">Head of Household</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Your Birth Date</label>
+            <input type="date" class="form-control" data-bind="input.selfBirthDate">
+          </div>
+
+          <div class="mb-3 d-none" data-show-if="input.filingStatus" data-required-value="mfj">
+            <label class="form-label">Spouse's Birth Date</label>
+            <input type="date" class="form-control" data-bind="input.spouseBirthDatee">
+          </div>
+
+          <div class="d-flex flex-column flex-sm-row justify-content-sm-end">
+            <button class="btn btn-primary btn-nav w-sm-auto" data-next="2">Next</button>
+          </div>
+        </div>
+
+        <!-- Work Income -->
+        <div id="step2" class="step">
+          <h5 class="mb-3 text-primary">Work Income</h5>
           <p>Enter information from your latest paycheck for all jobs.</p>
 
           <!-- Template Job Entry -->
           <template id="job-template">
             <div class="job border p-3 mb-3 bg-light rounded position-relative">
               <div class="row g-2">
-                <div class="col-12 col-md-6">
+                <div class="col-12 col-md-6 d-none" data-show-if="input.filingStatus" data-required-value="mfj">
                   <label class="form-label">Whose Job?</label>
                   <select class="form-select" data-bind="input.jobs.{{INDEX}}.person">
                     <option value="Self">Self</option>
@@ -122,18 +152,20 @@
           </template>
 
           <div id="jobs" class="mb-3">
+            <!-- JavaScript injects rows here -->
           </div>
 
           <button id="btnAddJob" class="btn btn-outline-primary btn-sm mb-3">+ Add Another Job</button>
 
-          <div class="d-flex flex-column flex-sm-row justify-content-sm-end">
-            <button class="btn btn-primary btn-nav w-sm-auto" data-next="2">Next: Other Income</button>
+          <div class="d-flex flex-column flex-sm-row justify-content-sm-between gap-2">
+            <button class="btn btn-secondary btn-nav w-sm-auto" data-next="1">Back</button>
+            <button class="btn btn-primary btn-nav w-sm-auto" data-next="3">Next</button>
           </div>
         </div>
 
-        <!-- Step 2: Other Income -->
-        <div id="step2" class="step">
-          <h5 class="mb-3 text-primary">Step 2: Other Income</h5>
+        <!-- Other Income -->
+        <div id="step3" class="step">
+          <h5 class="mb-3 text-primary">Other Income</h5>
           <p>Enter your projected annual totals for these categories.</p>
 
           <div class="mb-3">
@@ -162,14 +194,14 @@
           </div>
 
           <div class="d-flex flex-column flex-sm-row justify-content-sm-between gap-2">
-            <button class="btn btn-secondary btn-nav w-sm-auto" data-next="1">Back</button>
-            <button class="btn btn-primary btn-nav w-sm-auto" data-next="3">Next: Credits</button>
+            <button class="btn btn-secondary btn-nav w-sm-auto" data-next="2">Back</button>
+            <button class="btn btn-primary btn-nav w-sm-auto" data-next="4">Next</button>
           </div>
         </div>
 
-        <!-- Step 3: Credits -->
-        <div id="step3" class="step">
-          <h5 class="mb-3 text-primary">Step 2: Credits</h5>
+        <!-- Credits -->
+        <div id="step4" class="step">
+          <h5 class="mb-3 text-primary">Credits</h5>
           <p>Enter any projected credits.</p>
 
           <div class="mb-3">
@@ -178,13 +210,13 @@
           </div>
 
           <div class="d-flex flex-column flex-sm-row justify-content-sm-between gap-2">
-            <button class="btn btn-secondary btn-nav w-sm-auto" data-next="2">Back</button>
+            <button class="btn btn-secondary btn-nav w-sm-auto" data-next="3">Back</button>
             <button id="btnCalc" class="btn btn-primary w-sm-auto">Calculate Results</button>
           </div>
         </div>
 
-        <!-- Step 4: Results -->
-        <div id="step4" class="step">
+        <!-- Results -->
+        <div id="step5" class="step">
           <!-- Big Summary Card -->
           <div id="resultStatusCard" class="card mb-4 shadow-sm border-0">
             <div class="card-body text-center text-white">
@@ -215,7 +247,7 @@
                   </li>
                 </template>
                 <ul class="list-group list-group-flush small" id="gross-wages-details">
-                  <!-- JavaScript injects job rows here -->
+                  <!-- JavaScript injects rows here -->
                 </ul>
               </div>
 
@@ -236,7 +268,7 @@
                   </li>
                 </template>
                 <ul class="list-group list-group-flush small" id="pre-tax-deductions-details">
-                  <!-- JavaScript injects job rows here -->
+                  <!-- JavaScript injects rows here -->
                 </ul>
               </div>
 
@@ -254,7 +286,7 @@
                 </template>
 
                 <ul class="list-group list-group-flush small" id="taxible-wages-details">
-                  <!-- JavaScript injects job rows here -->
+                  <!-- JavaScript injects rows here -->
                 </ul>
               </div>
 
@@ -405,7 +437,7 @@
 
           <div class="d-flex flex-column flex-sm-row justify-content-sm-between gap-2">
             <div class="d-flex flex-column flex-sm-row gap-2">
-              <button class="btn btn-secondary btn-nav w-auto-sm" data-next="3">Back</button>
+              <button class="btn btn-secondary btn-nav w-auto-sm" data-next="4">Back</button>
               <button class="btn btn-secondary btn-nav w-auto-sm" data-next="1">Start Over</button>
             </div>
             <button id="btnSaveData" class="btn btn-primary w-auto-sm">Save Data</button>

@@ -1,7 +1,13 @@
+// Data model for inputs and results
 const data = {
   input: {
+    filingStatus: null,
+    selfBirthDate: null,
+    spouseBirthDate: null,
+
     jobs: [
     ],
+
     otherIncome: {
       selfEmploymentIncome: null,
       spouseSelfEmploymentIncome: null,
@@ -9,11 +15,108 @@ const data = {
       shortTermGains: null,
       longTermGains: null
     },
+
     credits: {
       foreignTaxCredit: null
     }
   },
+
   results: {
+  }
+};
+
+// 2026 Tax Data (Married Filing Jointly)
+const taxData = {
+  // Standard Deduction
+  standardDeduction: {
+    single: 16100,
+    mfj: 32200,
+    mfs: 16100,
+    hoh: 24150
+  },
+
+  // Income Tax Brackets
+  brackets: {
+    single: [
+      { threshold: 0, rate: 0.10 },
+      { threshold: 12400, rate: 0.12 },
+      { threshold: 50400, rate: 0.22 },
+      { threshold: 105700, rate: 0.24 },
+      { threshold: 201775, rate: 0.32 },
+      { threshold: 256225, rate: 0.35 },
+      { threshold: 640600, rate: 0.37 }
+    ],
+    mfj: [
+      { threshold: 0, rate: 0.10 },
+      { threshold: 24800, rate: 0.12 },
+      { threshold: 100800, rate: 0.22 },
+      { threshold: 211400, rate: 0.24 },
+      { threshold: 403550, rate: 0.32 },
+      { threshold: 512450, rate: 0.35 },
+      { threshold: 768700, rate: 0.37 }
+    ],
+    mfs: [
+      { threshold: 0, rate: 0.10 },
+      { threshold: 12400, rate: 0.12 },
+      { threshold: 50400, rate: 0.22 },
+      { threshold: 105700, rate: 0.24 },
+      { threshold: 201775, rate: 0.32 },
+      { threshold: 256225, rate: 0.35 },
+      { threshold: 384350, rate: 0.37 }
+    ],
+    hoh: [
+      { threshold: 0, rate: 0.10 },
+      { threshold: 17700, rate: 0.12 },
+      { threshold: 67450, rate: 0.22 },
+      { threshold: 105700, rate: 0.24 },
+      { threshold: 201750, rate: 0.32 },
+      { threshold: 256200, rate: 0.35 },
+      { threshold: 640600, rate: 0.37 }
+    ]
+  },
+
+  // Capital Gains Tax
+  capitalGains: {
+    single: { "0%": 49450, "15%": 545500 },
+    mfj: { "0%": 98900, "15%": 613700 },
+    mfs: { "0%": 49450, "15%": 306850 },
+    hoh: { "0%": 66200, "15%": 579600 }
+  },
+
+  // Net Investment Income Tax
+  netInvestmentIncomeTax: {
+    threshold: {
+      single: 200000,
+      mfj: 250000,
+      mfs: 125000,
+      hoh: 200000
+    },
+    rate: 0.038
+  },
+
+  // Additional Medicare Tax
+  additionalMedicareTax: {
+    threshold: {
+      single: 200000,
+      mfj: 250000,
+      mfs: 125000,
+      hoh: 200000
+    },
+    rate: 0.009
+  },
+
+  // Self-Employment Tax
+  selfEmploymentTax: {
+    threshold: 400,
+    adjustmentRate: 0.9235,
+    socialSecurityWageBase: 184500,
+    socialSecurityRate: 0.124,
+    medicareRate: 0.029
+  },
+
+  // Qualified Business Income
+  qbi: {
+    rate: 0.20
   }
 };
 
@@ -25,27 +128,34 @@ $(document).ready(function() {
 
   // Data Binding  
   $(document).on('input', '[data-bind]', function () {
-    const $el = $(this);
-    const path = $el.data('bind');
-    const value = parseValue($el);
+    const $element = $(this);
+    const path = $element.data('bind');
+    const value = parseValue($element);
     
-    setPath(data, path, value);
+    setModelValue(data, path, value);
+
+    // Automatically show/hide things depending on values in the model
+    $('[data-show-if="'+path+'"]').each(function() {
+      const $element = $(this);
+      const requiredValue = $element.data('required-value');
+      $(this).toggleClass('d-none', value !== requiredValue);
+    });
   });
 
-  // Step1: Add Job
+  // Add Job
   $('#btnAddJob').on('click', function() {
     addJob();
   });
 
-  // Step1: Remove Job
+  // Remove Job
   $(document).on('click', '.remove-job', function() {
     const $job = $(this).closest('.job');
     const index = $job.index();
     removeJob(index);
   });
 
-  // Step 4: Calculate Results
-  $('#btnCalc').on('click', performFullCalculation);
+  // Calculate Results
+  $('#btnCalc').on('click', calculateResults);
 
   // Save Data
   $('#btnSaveData').on('click', saveData);
@@ -75,13 +185,13 @@ function navigateToStep(stepNumber) {
 }
 
 /**
- * Set a nested value on an object using a dot path.
+ * Set a nested value on the model using a dot path.
  *
  * @param {Object} obj - Target object to modify
  * @param {string} path - Dot-separated path (e.g. "jobs.1.income")
  * @param {*} value - Value to assign at path
  */
-function setPath(obj, path, value) {
+function setModelValue(obj, path, value) {
   const keys = path.split('.');
 
   let current = obj;
@@ -93,13 +203,13 @@ function setPath(obj, path, value) {
 }
 
 /**
- * Get a nested value from an object using a dot path.
+ * Get a nested value from the model using a dot path.
  *
  * @param {Object} obj - Source object
  * @param {string} path - Dot-separated path (e.g. "jobs.0.income")
  * @returns {*} Value at the given path
  */
-function getPath(obj, path) {
+function getModelValue(obj, path) {
   const keys = path.split('.');
 
   let current = obj;
@@ -116,13 +226,13 @@ function getPath(obj, path) {
 /**
  * Parses a form element value based on its input type.
  *
- * @param {jQuery} $el - The jQuery-wrapped input/select/checkbox element
+ * @param {jQuery} $element - The jQuery-wrapped input/select/checkbox element
  * @returns {*} Parsed value (string, number, or boolean)
  */
-function parseValue($el) {
-  const tag = $el.prop('tagName').toLowerCase();
-  const type = $el.attr('type');
-  const val = $el.val();
+function parseValue($element) {
+  const tag = $element.prop('tagName').toLowerCase();
+  const type = $element.attr('type');
+  const val = $element.val();
 
   // Select Return whatever type the select value is
   if (tag === 'select') {
@@ -131,7 +241,7 @@ function parseValue($el) {
 
   // Checkbox 
   if (type === 'checkbox') {
-    return $el.is(':checked');
+    return $element.is(':checked');
   }
 
   // Number input
@@ -141,6 +251,29 @@ function parseValue($el) {
 
   // Default to a string
   return val;
+}
+
+function updateDomFromModel($element) {
+  // Copy data from the model into the DOM
+  $element.find('[data-bind]').each(function () {
+    const $element = $(this);
+    const path = $element.data('bind');
+
+    const value = getModelValue(data, path);
+    if (value !== undefined && value !== null) {
+      $element.val(value);
+    }
+  });
+}
+
+function updateDomVisibilityFromMode($element) {
+  $element.find('[data-show-if]').each(function () {
+    const $element = $(this);
+    const path = $element.data('show-if');
+    const value = getModelValue(data, path);
+    const requiredValue = $element.data('required-value');
+    $(this).toggleClass('d-none', value !== requiredValue);
+  });
 }
 
 /**
@@ -202,34 +335,29 @@ function renderJobs() {
     const jobHtml = $('#job-template').html();
     const $job = $(jobHtml.replaceAll('{{INDEX}}', index));
 
-    // Copy data into the DOM
-    $job.find('[data-bind]').each(function () {
-      const $el = $(this);
-      const path = $el.data('bind');
+    // Update the DOM from the model
+    updateDomFromModel($job);
 
-      const value = getPath(data, path);
-      if (value !== undefined && value !== null) {
-        $el.val(value);
-      }
-    });
+    // Update the DOM visibility from the model
+    updateDomVisibilityFromMode($job);
 
     // Add the job DOM to the container      
     $jobs.append($job);
-    
+
     // Get the HTML template, update placeholders, and append
     const grossWagesDetailHtml = $('#gross-wages-detail-template').html();
     const $grossWagesDetail = $(grossWagesDetailHtml.replaceAll('{{INDEX}}', index).replaceAll('{{PERSON}}', job.person));
 
     // Add the DOM to the container      
     $grossWagesDetails.append($grossWagesDetail);
-    
+
     // Get the HTML template, update placeholders, and append
     const preTaxDeductionsDetailHtml = $('#pre-tax-deductions-detail-template').html();
     const $preTaxDeductionsDetail = $(preTaxDeductionsDetailHtml.replaceAll('{{INDEX}}', index).replaceAll('{{PERSON}}', job.person));
 
     // Add the DOM to the container
     $preTaxDeductionsDetails.append($preTaxDeductionsDetail);
-    
+
     // Get the HTML template, update placeholders, and append
     const taxibleWagesDetailHtml = $('#taxible-wages-detail-template').html();
     const $taxibleWagesDetail = $(taxibleWagesDetailHtml.replaceAll('{{INDEX}}', index).replaceAll('{{PERSON}}', job.person));
@@ -237,35 +365,16 @@ function renderJobs() {
     // Add the DOM to the container      
     $taxibleWagesDetails.append($taxibleWagesDetail);
   });
-
-  // FIXME This doesn't update the results if we were on that page
 }
 
-// 2026 Tax Data (Married Filing Jointly)
-const TAX_2026 = {
-  mfjStandardDeduction: 32200,
-  mfjBrackets: [
-    { threshold: 0, rate: 0.10 },
-    { threshold: 24800, rate: 0.12 },
-    { threshold: 100800, rate: 0.22 },
-    { threshold: 211400, rate: 0.24 },
-    { threshold: 403550, rate: 0.32 },
-    { threshold: 512450, rate: 0.35 },
-    { threshold: 768700, rate: 0.37 }
-  ],
-  mfsStandardDeduction: 16100,
-  mfsBrackets: [
-    { threshold: 0, rate: 0.10 },
-    { threshold: 12400, rate: 0.12 },
-    { threshold: 50400, rate: 0.22 },
-    { threshold: 105700, rate: 0.24 },
-    { threshold: 201775, rate: 0.32 },
-    { threshold: 256225, rate: 0.35 },
-    { threshold: 384350, rate: 0.37 }
-  ]
-};
-
-function calculateFederalTax(taxableIncome, brackets) {
+/**
+ * Calculates Federal Income Tax.
+ * 
+ * @param {number} taxableIncome - Taxible Income (AGI after deductions).
+ * @param {number} brackets - Income tax brackets.
+ * @returns {number} The calculated Income Tax amount.
+ */
+function calculateIncomeTax(taxableIncome, brackets) {
   let tax = 0;
   for (let i = brackets.length - 1; i >= 0; i--) {
     if (taxableIncome > brackets[i].threshold) {
@@ -280,40 +389,38 @@ function calculateFederalTax(taxableIncome, brackets) {
 /**
  * Calculates the Net Investment Income Tax (NIIT).
  * 
+ * @param {String} filingStatus - Filing status (single, mfj, mfs, hoh)
  * @param {number} magi - Modified Adjusted Gross Income.
  * @param {number} netInvestmentIncome - Total qualifying investment income.
  * @returns {number} The calculated NIIT amount.
  */
-function calculateNetInvestmentTaxes(magi, netInvestmentIncome) {
-  const THRESHOLD = 250000; // Threshold for Married Filing Jointly
-  const RATE = 0.038;       // 3.8% Tax Rate
-
+function calculateNetInvestmentTaxes(filingStatus, magi, netInvestmentIncome) {
   // Calculate how much the MAGI exceeds the threshold
-  const magiOverage = Math.max(0, magi - THRESHOLD);
+  const magiOverage = Math.max(0, magi - taxData.netInvestmentIncomeTax.threshold[filingStatus]);
 
   // Calculate the lesser of the overage or the investment income
   const amountSubjectToTax = Math.min(magiOverage, Math.max(0, netInvestmentIncome));
 
   // Apply the surtax
-  return amountSubjectToTax * RATE;
+  return amountSubjectToTax * taxData.netInvestmentIncomeTax.rate;
 }
 
 /**
  * Calculates the Additional Medicare Tax.
  * 
+ * @param {String} filingStatus - Filing status (single, mfj, mfs, hoh)
  * @param {number} medicareTaxibleWages W-2 wages taxible by medicare
  * @returns {number} The calculated tax amount.
  */
-function calculateAdditionalMedicareTax(medicareTaxibleWages, totalSelfEmploymentIncome) {
-  const THRESHOLD = 250000; // Threshold for Married Filing Jointly
-  const RATE = 0.009;       // 0.9% Tax Rate
-
-  // Calculate how much the combined wages exceed the threshold
+function calculateAdditionalMedicareTax(filingStatus, medicareTaxibleWages, totalSelfEmploymentIncome) {
+  // Calculate the combined earned income (e.g., megicare wages + self-employment income)
   const combinedEarnedIncome = medicareTaxibleWages + totalSelfEmploymentIncome;
-  const overage = Math.max(0, combinedEarnedIncome - THRESHOLD);
+
+  // Calculate how much the combined earned income exceeds the threshold
+  const amountSubjectToTax = Math.max(0, combinedEarnedIncome - taxData.additionalMedicareTax.threshold[filingStatus]);
 
   // Apply the surtax
-  return overage * RATE;
+  return amountSubjectToTax * taxData.additionalMedicareTax.rate;
 }
 
 /**
@@ -324,50 +431,42 @@ function calculateAdditionalMedicareTax(medicareTaxibleWages, totalSelfEmploymen
  * @returns {number} The calculated tax amount.
  */
 function calculateSelfEmploymentTax(selfEmploymentIncome, w2Wages = 0) {
-  const SE_THRESHOLD = 400;     // Self-Employment income threshold for the tax
-  const SE_ADJUSTMENT = 0.9235; // 92.35% multiplier
-  const SS_WAGE_BASE = 184500;  // Social Security Cap
-  const SS_RATE = 0.124;        // 12.4%
-  const MED_RATE = 0.029;       // 2.9%
-
   // Check if the income meets the threshold for additional tax
-  if (selfEmploymentIncome < SE_THRESHOLD) {
+  if (selfEmploymentIncome < taxData.selfEmploymentTax.threshold) {
     return 0;
   }
 
   // Calculate Earnings Subject to Tax
-  const taxableEarnings = selfEmploymentIncome * SE_ADJUSTMENT;
+  const taxableEarnings = selfEmploymentIncome * taxData.selfEmploymentTax.adjustmentRate;
 
-  // Social Security Portion (capped to SS wage base)
-  const remainingSSCap = Math.max(0, SS_WAGE_BASE - w2Wages);
+  // Social Security Portion (capped to social security wage base)
+  const remainingSSCap = Math.max(0, taxData.selfEmploymentTax.socialSecurityWageBase - w2Wages);
   const amountSubjectToSS = Math.min(taxableEarnings, remainingSSCap);
-  const ssTax = amountSubjectToSS * SS_RATE;
+  const ssTax = amountSubjectToSS * taxData.selfEmploymentTax.socialSecurityRate;
 
   // Medicare Portion (no cap)
-  const medTax = taxableEarnings * MED_RATE;
+  const medTax = taxableEarnings * taxData.selfEmploymentTax.medicareRate;
 
   return ssTax + medTax;
 }
 
 /**
- * Calculates the 2026 QBI Deduction.
+ * Calculates the QBI Deduction.
  * 
  * Note: This is a simplified calculation that gives an estimate. This function
  * just takes 20% of the Self-Employment income after Self-Employment
  * adjustments, and it ignores various QBI threshold.
  */
 function calculateQbiDeduction(selfEmploymentIncome, selfEmploymentAdjustment) {
-    const QBI_RATE = 0.20; 
-    
-    // QBI is net business income after adjustments
-    const qualifiedBusinessIncome =
-          selfEmploymentIncome
-        - selfEmploymentAdjustment;
+  // QBI is net business income after adjustments
+  const qualifiedBusinessIncome =
+        selfEmploymentIncome
+      - selfEmploymentAdjustment;
 
-    return qualifiedBusinessIncome * QBI_RATE;
+  return qualifiedBusinessIncome * taxData.qbi.rate;
 }
 
-function getJobProjections(jobs, results) {
+function calculateJobProjections(jobs, results) {
   results.jobs = [];
   results.totalGrossWages = 0;
   results.selfGrossWages = 0;
@@ -445,19 +544,37 @@ function getJobProjections(jobs, results) {
 }
 
 /**
- * Calculates the final W-4 adjustments needed for the primary job.
+ * Calculates tje W-4 adjustments needed for the primary job.
+ * 
+ * @param {String} filingStatus - Filing status (single, mfj, mfs, hoh)
  */
-function calculateW4Adjustments() {
+function calculateW4Adjustments(filingStatus) {
+  // If there are no jobs, we can't calculate a W-4 adjustment
+  if (data.input.jobs.length == 0) {
+    data.results.w4WxtraPerCheck = 0;
+    return;  
+  }
+
   const inputJob1 = data.input.jobs[0];
   const resultsJob1 = data.results.jobs[0];
 
+  let standardDeduction = taxData.standardDeduction[filingStatus];
+  let brackets = taxData.brackets[filingStatus];
+  if (data.input.jobs.length > 1) {
+    /*
+     * If there are multiple jobs, we'll be checking the W5 box 2c, which uses the
+     * Married Filing Single tax tables for figuring withholding.
+     */
+    standardDeduction = taxData.standardDeduction["mfs"];
+    brackets = taxData.brackets["mfs"];
+  }
+
   /*
-   * Calculate the tax for job1 using the Married Filing Separately (which is
-   * what the W4 Box 2(c) does). Divide that tax by the paycheck frequency to
-   * that by the paycheck frequency to get the new estimated withholding.  
+   * Calculate the annual income tax for job 1 and divide by the paycheck frequency to
+   * get the new estimated withholding.
    */
-  const estimatedNewWithholding = calculateFederalTax(
-      Math.max(0, resultsJob1.taxibleWages + data.results.totalOtherIncome - TAX_2026.mfsStandardDeduction), TAX_2026.mfsBrackets)
+  const estimatedNewWithholding = calculateIncomeTax(
+      Math.max(0, resultsJob1.taxibleWages + data.results.totalOtherIncome - standardDeduction), brackets)
       / inputJob1.paycheckFreq;
 
   // Calculate projected withholding for all other jobs
@@ -475,10 +592,10 @@ function calculateW4Adjustments() {
   data.results.w4WxtraPerCheck = Math.max(0, Math.ceil(annualGap / resultsJob1.paychecksRemaining));
 }
 
-function performFullCalculation() {
+function calculateResults() {
   data.results = {};
   
-  getJobProjections(data.input.jobs, data.results);
+  calculateJobProjections(data.input.jobs, data.results);
   
   data.results.totalOtherIncome =
         data.input.otherIncome.selfEmploymentIncome
@@ -499,7 +616,7 @@ function performFullCalculation() {
       + data.results.totalOtherIncome
       - data.results.adjustments;
   
-  data.results.standardDeduction = TAX_2026.mfjStandardDeduction;
+  data.results.standardDeduction = taxData.standardDeduction[data.input.filingStatus];
 
   const totalSelfEmploymentIncome =
         data.input.otherIncome.selfEmploymentIncome
@@ -511,16 +628,24 @@ function performFullCalculation() {
   
   data.results.taxableIncome = Math.max(0, data.results.agi - data.results.deductions);
   
-  data.results.incomeTax = calculateFederalTax(data.results.taxableIncome, TAX_2026.mfjBrackets);
+  data.results.incomeTax = calculateIncomeTax(
+      data.results.taxableIncome,
+      taxData.brackets[data.input.filingStatus]);
+
   const investmentIncome =
         data.input.otherIncome.interestIncome
       + data.input.otherIncome.shortTermGains
       + data.input.otherIncome.longTermGains;
-  data.results.netInvestmentIncomeTax = calculateNetInvestmentTaxes(data.results.agi,
+  data.results.netInvestmentIncomeTax = calculateNetInvestmentTaxes(
+      data.input.filingStatus,
+      data.results.agi,
       investmentIncome);
+
   data.results.additionalMedicareTax = calculateAdditionalMedicareTax(
+      data.input.filingStatus,
       data.results.totalMedicareTaxibleWages,
       data.input.otherIncome.selfEmploymentIncome + data.input.otherIncome.spouseSelfEmploymentIncome);
+
   data.results.taxesBeforeCredits = data.results.incomeTax
       + data.results.selfEmploymentTax
       + data.results.netInvestmentIncomeTax
@@ -530,22 +655,12 @@ function performFullCalculation() {
   
   data.results.totalTaxes = Math.max(0, data.results.taxesBeforeCredits - data.results.credits);
   data.results.difference = data.results.totalFedTaxWithheld - data.results.totalTaxes;
-  
-  calculateW4Adjustments();
+
+  calculateW4Adjustments(data.input.filingStatus);
 
   renderResults();
 
-  navigateToStep(4);
-}
-
-/**
- * Formatter that returns a number formatted as a USD formatted currency string.
- */
-function toCurrency(value) {
-  return Number(value).toLocaleString('en-US', { 
-    style: 'currency', 
-    currency: 'USD' 
-  });
+  navigateToStep(5);
 }
 
 /**
@@ -555,18 +670,22 @@ function toCurrency(value) {
  * @example $('#price').currency(0); // Sets text to "$0.00"
  */
 $.fn.currency = function(value) {
-  return this.text(toCurrency(value));
+  const str = Number(value).toLocaleString('en-US', { 
+    style: 'currency', 
+    currency: 'USD' 
+  });
+  return this.text(str);
 };
 
 function renderResults() {
   $(document).find('span[data-bind]').each(function () {
-    const $el = $(this);
-    const path = $el.data('bind');
+    const $element = $(this);
+    const path = $element.data('bind');
 
-    const value = getPath(data, path);
+    const value = getModelValue(data, path);
 
     if (value !== undefined && value !== null) {
-      $el.currency(value);
+      $element.currency(value);
     }
   });
 
@@ -590,7 +709,7 @@ function saveData() {
   const now = new Date();
   const dateStamp = now.toISOString().split('T')[0]; // Result: "2026-05-02"
 
-  const json = JSON.stringify(data, null, 2);
+  const json = JSON.stringify(data.input, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -608,14 +727,12 @@ function importData(newInput) {
   
   renderJobs(data);
 
-  $(document).find('[data-bind]').each(function () {
-    const $el = $(this);
-    const path = $el.data('bind');
+  // Update the DOM from the model
+  updateDomFromModel($(document));
 
-    const value = getPath(data, path);
+  // Update the DOM visibility from the model
+  updateDomVisibilityFromMode($(document));
 
-    if (value !== undefined && value !== null) {
-      $el.val(value);
-    }
-  });
+  // Calculate the results, which will automatically move to the results page
+  calculateResults();
 }
