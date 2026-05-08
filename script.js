@@ -9,8 +9,8 @@ const data = {
     ],
 
     otherIncome: {
-      selfEmploymentIncome: null,
-      spouseSelfEmploymentIncome: null,
+      selfEmploymentIncomeSelf: null,
+      selfEmploymentIncomeSpouse: null,
       interestIncome: null,
       shortTermGains: null,
       longTermGains: null
@@ -27,6 +27,8 @@ const data = {
 
 // 2026 Tax Data (Married Filing Jointly)
 const taxData = {
+  taxYear: 2026,
+
   // Standard Deduction
   standardDeduction: {
     single: 16100,
@@ -117,6 +119,12 @@ const taxData = {
   // Qualified Business Income
   qbi: {
     rate: 0.20
+  },
+
+  retirementContributionLimits: {
+    base: 24500,
+    standardCatchUp: 8000, // Age 50-59, 64+
+    enhancedCatchUp: 11250 // Age 60-63
   }
 };
 
@@ -321,13 +329,13 @@ function renderJobs() {
   const $jobs = $('#jobs');
   const $grossWagesDetails = $('#gross-wages-details');
   const $preTaxDeductionsDetails = $('#pre-tax-deductions-details');
-  const $taxibleWagesDetails = $('#taxible-wages-details');
+  const $taxableWagesDetails = $('#taxable-wages-details');
 
   // Clear all the containers before rendering
   $jobs.empty();
   $grossWagesDetails.empty();
   $preTaxDeductionsDetails.empty();
-  $taxibleWagesDetails.empty();
+  $taxableWagesDetails.empty();
 
   // Add all the jobs to the container
   data.input.jobs.forEach((job, index) => {
@@ -359,18 +367,296 @@ function renderJobs() {
     $preTaxDeductionsDetails.append($preTaxDeductionsDetail);
 
     // Get the HTML template, update placeholders, and append
-    const taxibleWagesDetailHtml = $('#taxible-wages-detail-template').html();
-    const $taxibleWagesDetail = $(taxibleWagesDetailHtml.replaceAll('{{INDEX}}', index).replaceAll('{{PERSON}}', job.person));
+    const taxableWagesDetailHtml = $('#taxable-wages-detail-template').html();
+    const $taxableWagesDetail = $(taxableWagesDetailHtml.replaceAll('{{INDEX}}', index).replaceAll('{{PERSON}}', job.person));
 
     // Add the DOM to the container      
-    $taxibleWagesDetails.append($taxibleWagesDetail);
+    $taxableWagesDetails.append($taxableWagesDetail);
   });
+}
+
+/**
+ * Gets the annual retirement contribution limit.
+ *
+ * @param {string} birthDate - ISO birth date string
+ * @param {number} taxYear - Tax year being calculated
+ * @returns {number} Annual contribution limit
+ */
+function getRetirementContributionLimit(birthDate, taxYear) {
+  let limit = taxData.retirementContributionLimits.base;
+
+  // Calculate the age as of the end of the tax year
+  const birth = new Date(birthDate);
+  const age = taxYear - birth.getFullYear();
+
+  // Add age-based catch-up
+  if (age >= 60 && age <= 63) {
+    // SECURE 2.0 enhanced catch-up
+    limit += taxData.retirementContributionLimits.enhancedCatchUp;
+  } else if (age >= 50) {
+    // Standard catch-up
+    limit += taxData.retirementContributionLimits.standardCatchUp;
+  }
+
+  return limit;
+}
+
+function projectJobs(input, results) {
+  results.jobs = [];
+  input.jobs.forEach(job => {
+    const projected = projectSingleJob(job);
+    results.jobs.push(projected);
+  });
+}
+
+/**
+ * Estimates remaining paychecks for the tax year.
+ *
+ * @param {string} paycheckDate - Most recent paycheck date (ISO string)
+ * @param {number} paycheckFreq - Annual paycheck frequency
+ * @param {number} taxYear - Tax year being projected
+ * @returns {number} Estimated remaining paychecks
+ */
+function calculateRemainingPaychecks(paycheckDate, paycheckFreq, taxYear) {
+  const lastPayDate = new Date(paycheckDate + "T00:00:00Z");
+  
+  // End of the tax year (Jan 1st of next tax year, to handle an early paycheck)
+  const endOfYear = new Date(Date.UTC(taxYear + 1, 0, 1));
+  
+  // Milliseconds per day
+  const msPerDay = 1000 * 60 * 60 * 24;
+  
+  // Days remaining in the year
+  const daysRemaining = Math.max(0, (endOfYear - lastPayDate) / msPerDay);
+  
+  // Approximate days per pay period
+  const periodDaysMap = {52: 7,   // Weekly
+                         26: 14,  // Bi-weekly
+                         24: 15,  // Semi-monthly
+                         12: 30   // Monthly
+  };
+  const daysPerPeriod = periodDaysMap[paycheckFreq] || 14;
+  
+  // Estimated future paychecks
+  return Math.floor(daysRemaining / daysPerPeriod);
+}
+
+function projectSingleJob(job) {
+  const paychecksRemaining = calculateRemainingPaychecks(
+      job.paycheckDate,
+      job.paycheckFreq,
+      taxData.taxYear);
+  return {
+    person: job.person,
+    paychecksRemaining: paychecksRemaining,
+    grossWages: job.ytdGrossWages + (job.currentGrossWages * paychecksRemaining),
+    preTaxRetirementDeductions: job.ytdPreTaxRetirementDeductions + (job.currentPreTaxRetirementDeductions * paychecksRemaining),
+    preTaxMedicalDeductions: job.ytdPreTaxMedicalDeductions + (job.currentPreTaxMedicalDeductions * paychecksRemaining),
+    fedTaxWithheld: job.ytdFedTaxWithheld + (job.currentFedTaxWithheld * paychecksRemaining)
+  };
+}
+
+/**
+  * Applies IRS retirement contribution limits across all jobs per person.
+  *
+  * If projected contributions exceed the annual limit, all jobs for that
+  * person are scaled proportionally.
+  *
+  * @param {Object} input - Input model
+  * @param {Object} results - Results model
+  */
+function applyRetirementContributionCaps(input, results) {
+  // Group projected jobs by person
+  const groupedJobs = {
+    Self: [],
+    Spouse: []
+  };
+
+  input.jobs.forEach((inputJob, index) => {
+    groupedJobs[inputJob.person].push({
+      input: inputJob,
+      result: results.jobs[index]
+    });
+  });
+
+  // Apply limits independently for each person
+  Object.entries(groupedJobs).forEach(([person, jobs]) => {
+    if (jobs.length === 0) {
+      return;
+    }
+
+    // Determine birth date for catch-up eligibility
+    const birthDate = person === 'Self'
+                    ? input.selfBirthDate
+                    : input.spouseBirthDate;
+
+    const limit = getRetirementContributionLimit(birthDate, taxData.taxYear);
+
+    // Sum YTD and projected retirement contributions
+    let totalYtd = 0;
+    let totalProjected = 0;
+    jobs.forEach(job => {
+      totalYtd += job.input.ytdPreTaxRetirementDeductions;
+      totalProjected += (job.input.currentPreTaxRetirementDeductions * job.result.paychecksRemaining);
+    });
+
+    // Scale future retirement contributions to max at the limit
+    const remainingRoom = Math.max(0, limit - totalYtd);
+    if (totalProjected > remainingRoom) {
+      const scaleFactor = remainingRoom / totalProjected;
+      jobs.forEach(job => {
+        job.result.preTaxRetirementDeductions =
+              job.input.ytdPreTaxRetirementDeductions
+            + (job.input.currentPreTaxRetirementDeductions * job.result.paychecksRemaining * scaleFactor);
+      });
+    }
+  });
+}
+
+function computeJobTaxableWages(results) {
+  results.jobs.forEach(job => {
+    job.preTaxDeductions = job.preTaxRetirementDeductions + job.preTaxMedicalDeductions;
+    job.taxableWages = job.grossWages - job.preTaxDeductions;
+
+    // Simplified medicare taxable wages
+    job.medicareTaxableWages = job.grossWages - job.preTaxMedicalDeductions;
+
+    // Simplified social secuqirty taxable wages
+    job.socialSecurityTaxableWages  = job.grossWages - job.preTaxMedicalDeductions;
+  });
+}
+
+function aggregateJobTotals(results) {
+  results.totalGrossWages = 0;
+  results.selfGrossWages = 0;
+  results.spouseGrossWages = 0;
+  results.totalPreTaxDeductions = 0;
+  results.totalTaxableWages = 0;
+  results.totalMedicareTaxableWages = 0;
+  results.totalSocialSecurityTaxableWages = 0;
+  results.selfSocialSecurityTaxableWages = 0;
+  results.spouseSocialSecurityTaxableWages = 0;
+  results.totalFedTaxWithheld = 0;
+  
+  results.jobs.forEach(job => {
+    results.totalGrossWages += job.grossWages;
+    results.totalPreTaxDeductions += job.preTaxDeductions;
+    results.totalTaxableWages += job.taxableWages;
+    results.totalMedicareTaxableWages += job.medicareTaxableWages;
+    results.totalSocialSecurityTaxableWages += job.socialSecurityTaxableWages;
+    results.totalFedTaxWithheld += job.fedTaxWithheld;
+    if (job.person === 'Self') {
+      results.selfGrossWages += job.grossWages;
+      results.selfSocialSecurityTaxableWages += job.socialSecurityTaxableWages;
+    } else {
+      results.spouseGrossWages += job.grossWages;
+      results.spouseSocialSecurityTaxableWages += job.socialSecurityTaxableWages;
+    }
+  });
+}
+
+function calculateOtherIncome(input, results) {
+  results.totalOtherIncome =
+        (input.otherIncome.selfEmploymentIncomeSelf || 0)
+      + (input.otherIncome.selfEmploymentIncomeSpouse || 0)
+      + (input.otherIncome.interestIncome || 0)
+      + (input.otherIncome.shortTermGains || 0)
+      + (input.otherIncome.longTermGains || 0);
+}
+
+/**
+ * Calculates AGI adjustments. This also calculates the self-employment tax,
+ * as that's needed to compute the adjustment.
+ *
+ * @param {Object} input - Input model
+ * @param {Object} results - Results model
+ */
+function calculateAdjustments(input, results) {
+  const selfEmploymentIncomeSelf =
+      input.otherIncome.selfEmploymentIncomeSelf || 0;
+  const selfEmploymentIncomeSpouse =
+      input.otherIncome.selfEmploymentIncomeSpouse || 0;
+  results.totalSelfEmploymentIncome =
+        selfEmploymentIncomeSelf
+      + selfEmploymentIncomeSpouse;
+
+  // Calculate self-employment taxes separately per person
+  const selfEmploymentTaxSelf = calculateSelfEmploymentTax(
+      selfEmploymentIncomeSelf,
+      results.selfSocialSecurityTaxableWages);
+  const selfEmploymentTaxSpouse = calculateSelfEmploymentTax(
+      selfEmploymentIncomeSpouse,
+      results.spouseSocialSecurityTaxableWages);
+  
+  // Total self-employment tax
+  results.selfEmploymentTax =
+        selfEmploymentTaxSelf
+      + selfEmploymentTaxSpouse;
+  
+  // Half of SE tax is deductible
+  results.selfEmploymentAdjustment = results.selfEmploymentTax / 2;
+  
+  // TODO  Future adjustments can be added here
+  
+  // Total adjustments to income
+  results.adjustments = results.selfEmploymentAdjustment;
+}
+
+/**
+ * Calculates adjusted gross income.
+ *
+ * @param {Object} results - Results model
+ */
+function calculateAgi(results) {
+  results.agi =
+        results.totalTaxableWages
+      + results.totalOtherIncome
+      - results.adjustments;
+}
+
+/**
+ * Calculates the QBI Deduction.
+ * 
+ * Note: This is a simplified calculation that gives an estimate. This function
+ * just takes 20% of the Self-Employment income after Self-Employment
+ * adjustments, and it ignores various QBI threshold.
+ */
+function calculateQbiDeduction(selfEmploymentIncome, selfEmploymentAdjustment) {
+  // QBI is net business income after adjustments
+  const qualifiedBusinessIncome =
+        selfEmploymentIncome
+      - selfEmploymentAdjustment;
+
+  return qualifiedBusinessIncome * taxData.qbi.rate;
+}
+
+/**
+ * Calculates deductions from AGI.
+ *
+ * @param {Object} input - Input model
+ * @param {Object} results - Results model
+ */
+function calculateDeductions(input, results) {
+  // Standard deduction based on filing status
+  results.standardDeduction = taxData.standardDeduction[input.filingStatus];
+
+  // Qualified Business Income deduction
+  results.qbiDeduction = calculateQbiDeduction(
+      results.totalSelfEmploymentIncome,
+      results.selfEmploymentAdjustment);
+  
+  // TODO Future deductions
+  
+  // Total deductions
+  results.deductions =
+        results.standardDeduction
+      + results.qbiDeduction;
 }
 
 /**
  * Calculates Federal Income Tax.
  * 
- * @param {number} taxableIncome - Taxible Income (AGI after deductions).
+ * @param {number} taxableIncome - Taxable Income (AGI after deductions).
  * @param {number} brackets - Income tax brackets.
  * @returns {number} The calculated Income Tax amount.
  */
@@ -409,12 +695,13 @@ function calculateNetInvestmentTaxes(filingStatus, magi, netInvestmentIncome) {
  * Calculates the Additional Medicare Tax.
  * 
  * @param {String} filingStatus - Filing status (single, mfj, mfs, hoh)
- * @param {number} medicareTaxibleWages W-2 wages taxible by medicare
+ * @param {number} medicareTaxableWages W-2 wages taxable by medicare
  * @returns {number} The calculated tax amount.
  */
-function calculateAdditionalMedicareTax(filingStatus, medicareTaxibleWages, totalSelfEmploymentIncome) {
+function calculateAdditionalMedicareTax(filingStatus, medicareTaxableWages, totalSelfEmploymentIncome) {
   // Calculate the combined earned income (e.g., megicare wages + self-employment income)
-  const combinedEarnedIncome = medicareTaxibleWages + totalSelfEmploymentIncome;
+  const combinedEarnedIncome = medicareTaxableWages
+      + (totalSelfEmploymentIncome * taxData.selfEmploymentTax.adjustmentRate);
 
   // Calculate how much the combined earned income exceeds the threshold
   const amountSubjectToTax = Math.max(0, combinedEarnedIncome - taxData.additionalMedicareTax.threshold[filingStatus]);
@@ -451,215 +738,173 @@ function calculateSelfEmploymentTax(selfEmploymentIncome, w2Wages = 0) {
 }
 
 /**
- * Calculates the QBI Deduction.
- * 
- * Note: This is a simplified calculation that gives an estimate. This function
- * just takes 20% of the Self-Employment income after Self-Employment
- * adjustments, and it ignores various QBI threshold.
+ * Calculates total federal tax liability.
+ *
+ * @param {Object} input - Input model
+ * @param {Object} results - Results model
  */
-function calculateQbiDeduction(selfEmploymentIncome, selfEmploymentAdjustment) {
-  // QBI is net business income after adjustments
-  const qualifiedBusinessIncome =
-        selfEmploymentIncome
-      - selfEmploymentAdjustment;
+function calculateTaxes(input, results) {
+  // Taxable income after deductions
+  results.taxableIncome = Math.max(0, results.agi - results.deductions);
 
-  return qualifiedBusinessIncome * taxData.qbi.rate;
-}
+  // FIXME taxibleIncome includes LTCG, which is taxed differently
+  // Ordinary federal income tax
+  results.incomeTax = calculateIncomeTax(results.taxableIncome,
+      taxData.brackets[input.filingStatus]);
 
-function calculateJobProjections(jobs, results) {
-  results.jobs = [];
-  results.totalGrossWages = 0;
-  results.selfGrossWages = 0;
-  results.spouseGrossWages = 0;
-  results.totalPreTaxDeductions = 0;
-  results.totalFedTaxWithheld = 0;
-  results.totalTaxibleWages = 0;
-  results.totalMedicareTaxibleWages = 0;
+  // Investment income subject to NIIT
+  const investmentIncome =
+        (input.otherIncome.interestIncome || 0)
+      + (input.otherIncome.shortTermGains || 0)
+      + (input.otherIncome.longTermGains || 0);
 
-  const endOfYear = new Date('2026-12-31');
+  // Net Investment Income Tax
+  results.netInvestmentIncomeTax = calculateNetInvestmentTaxes(
+      input.filingStatus,
+      results.agi,
+      investmentIncome);
 
-  jobs.forEach(job => {
-      // Compute the number of days from this pay-date till the next year
-      const lastPayDate = new Date(job.paycheckDate);
-      const nextYear = lastPayDate.getFullYear() + 1;
-      const jan1NextYear = new Date(nextYear, 0, 1);
-      const msPerDay = 1000 * 60 * 60 * 24;
-      const daysRemaining = Math.max(0, (jan1NextYear - lastPayDate) / msPerDay);
+  // Additional Medicare surtax
+  results.additionalMedicareTax = calculateAdditionalMedicareTax(
+      input.filingStatus,
+      results.totalMedicareTaxableWages,
+      results.totalSelfEmploymentIncome);
 
-      // Convert the pay frequency to days in period
-      const periodDaysMap = {
-          52: 7,  // Weekly
-          26: 14, // Bi-weekly
-          24: 15, // Semi-monthly (Average)
-          12: 30  // Monthly (Average)
-      };
-      const daysInPeriod = periodDaysMap[job.paycheckFreq] || 14;
+  // Taxes before credits
+  results.taxesBeforeCredits =
+        results.incomeTax
+      + results.selfEmploymentTax
+      + results.netInvestmentIncomeTax
+      + results.additionalMedicareTax;
 
-      // Compute the number of paychecks remaining this year
-      const paychecksRemaining = Math.floor(daysRemaining / daysInPeriod);
-      
-      const grossWages =
-            job.ytdGrossWages
-          + (job.currentGrossWages * paychecksRemaining);
-      const preTaxRetirementDeductions =
-            job.ytdPreTaxRetirementDeductions
-          + (job.currentPreTaxRetirementDeductions * paychecksRemaining);
-      const preTaxMedicalDeductions =
-            job.ytdPreTaxMedicalDeductions
-          + (job.currentPreTaxMedicalDeductions * paychecksRemaining);
-      const preTaxDeductions =
-            preTaxRetirementDeductions
-          + preTaxMedicalDeductions;
-      const fedTaxWithheld =
-            job.ytdFedTaxWithheld
-          + (job.currentFedTaxWithheld * paychecksRemaining);
-      
-      const taxibleWages = grossWages - preTaxDeductions;
-      const medicareTaxibleWages = grossWages - preTaxMedicalDeductions;
-      
-      results.jobs.push({
-        lastPayDate: lastPayDate,
-        paychecksRemaining: paychecksRemaining,
-        grossWages: grossWages,
-        preTaxDeductions: preTaxDeductions,
-        preTaxRetirementDeductions: preTaxRetirementDeductions,
-        preTaxMedicalDeductions: preTaxMedicalDeductions,
-        fedTaxWithheld: fedTaxWithheld,
-        taxibleWages: taxibleWages,
-        medicareTaxibleWages: medicareTaxibleWages
-      });
+  // Credits
+  results.credits = (input.credits.foreignTaxCredit || 0);
 
-      results.totalGrossWages += grossWages;
-      results.totalPreTaxDeductions += preTaxDeductions;
-      results.totalFedTaxWithheld += fedTaxWithheld;
-      results.totalTaxibleWages += taxibleWages;
-      results.totalMedicareTaxibleWages += medicareTaxibleWages;
-      
-      if (job.person == "Self") {
-        results.selfGrossWages += grossWages;
-      } else {
-        results.spouseGrossWages += grossWages;
-      }
-  });
+  // Final tax liability
+  results.totalTaxes = Math.max(0, results.taxesBeforeCredits - results.credits);
 }
 
 /**
- * Calculates tje W-4 adjustments needed for the primary job.
- * 
- * @param {String} filingStatus - Filing status (single, mfj, mfs, hoh)
+ * Calculates tax payments and withholding.
+ *
+ * @param {Object} results - Results model
  */
-function calculateW4Adjustments(filingStatus) {
-  // If there are no jobs, we can't calculate a W-4 adjustment
-  if (data.input.jobs.length == 0) {
-    data.results.w4WxtraPerCheck = 0;
-    return;  
+function calculatePayments(results) {
+  // TODO Future payments
+  
+  results.totalPayments = results.totalFedTaxWithheld;
+}
+
+/**
+ * Calculates refund or balance due.
+ *
+ * @param {Object} results - Results model
+ */
+function calculateRefundOrBalance(results) {
+  results.difference =
+        results.totalPayments
+      - results.totalTaxes;
+}
+
+/**
+ * Calculates suggested W-4 extra withholding for the first job.
+ *
+ * @param {Object} input - User input model
+ * @param {Object} results - Results model
+ */
+function calculateW4Adjustments(input, results) {
+  // No jobs
+  if (input.jobs.length === 0) {
+    results.w4ExtraPerCheck = 0;
+    return;
   }
 
-  const inputJob1 = data.input.jobs[0];
-  const resultsJob1 = data.results.jobs[0];
+  const primaryInputJob = input.jobs[0];
+  const primaryResultJob = results.jobs[0];
 
-  let standardDeduction = taxData.standardDeduction[filingStatus];
-  let brackets = taxData.brackets[filingStatus];
-  if (data.input.jobs.length > 1) {
-    /*
-     * If there are multiple jobs, we'll be checking the W5 box 2c, which uses the
-     * Married Filing Single tax tables for figuring withholding.
-     */
-    standardDeduction = taxData.standardDeduction["mfs"];
-    brackets = taxData.brackets["mfs"];
+  // If there are no paychecks remaining, we can't calculate W4 withholding
+  if (primaryResultJob.paychecksRemaining <= 0) {
+    results.w4ExtraPerCheck = 0;
+    return;
+  }
+
+  // Determine deductions and withholding tables
+  let standardDeduction = taxData.standardDeduction[input.filingStatus];
+  let brackets = taxData.brackets[input.filingStatus];
+
+  // If there are more than 1 job, switch to MFS info
+  if (input.jobs.length > 1) {
+    standardDeduction = taxData.standardDeduction.mfs;
+    brackets = taxData.brackets.mfs;
   }
 
   /*
-   * Calculate the annual income tax for job 1 and divide by the paycheck frequency to
-   * get the new estimated withholding.
+   * Estimate withholding for the primary job
+   * using annualized wages.
    */
-  const estimatedNewWithholding = calculateIncomeTax(
-      Math.max(0, resultsJob1.taxibleWages + data.results.totalOtherIncome - standardDeduction), brackets)
-      / inputJob1.paycheckFreq;
+  const estimatedAnnualWithholding =
+      calculateIncomeTax(
+          Math.max(0, primaryResultJob.taxableWages + results.totalOtherIncome - standardDeduction),
+          brackets
+      );
+  const estimatedPerPaycheckWithholding =
+      estimatedAnnualWithholding / primaryInputJob.paycheckFreq;
 
-  // Calculate projected withholding for all other jobs
-  let otherJobsAnnualWithholding = 0;
-  for (let i = 1; i < data.results.jobs.length; i++) {
-    otherJobsAnnualWithholding += data.results.jobs[i].fedTaxWithheld;
+  /*
+   * Project total withholding if Job 1
+   * switches to this new withholding level.
+   */
+
+  // Existing withholding from all other jobs
+  let projectedOtherJobWithholding = 0;
+  for (let i = 1; i < results.jobs.length; i++) {
+    projectedOtherJobWithholding += results.jobs[i].fedTaxWithheld;
   }
 
-  // Find the gap: Total Owed - (Other Jobs + Job 1's new projected withholding)
-  const projectedTotalWithholding = otherJobsAnnualWithholding + 
-      (resultsJob1.fedTaxWithheld - (inputJob1.currentFedTaxWithheld * resultsJob1.paychecksRemaining)) +
-      (estimatedNewWithholding * resultsJob1.paychecksRemaining);
+  // Replace future withholding for Job 1
+  const futurePrimaryWithholding =
+      estimatedPerPaycheckWithholding * primaryResultJob.paychecksRemaining;
 
-  const annualGap = data.results.totalTaxes - projectedTotalWithholding;
-  data.results.w4WxtraPerCheck = Math.max(0, Math.ceil(annualGap / resultsJob1.paychecksRemaining));
+  const alreadyWithheldPrimary = primaryResultJob.fedTaxWithheld
+      - (primaryInputJob.currentFedTaxWithheld
+         * primaryResultJob.paychecksRemaining);
+
+  const projectedTotalWithholding =
+      projectedOtherJobWithholding
+      + alreadyWithheldPrimary
+      + futurePrimaryWithholding;
+
+  // Calculate the gap between projected withholding and total taxes owed
+  const annualGap = results.totalTaxes - projectedTotalWithholding;
+
+  results.w4ExtraPerCheck = Math.max(0,
+      Math.ceil(annualGap / primaryResultJob.paychecksRemaining));
 }
 
 function calculateResults() {
-  data.results = {};
+  const results = {};
   
-  calculateJobProjections(data.input.jobs, data.results);
-  
-  data.results.totalOtherIncome =
-        data.input.otherIncome.selfEmploymentIncome
-      + data.input.otherIncome.spouseSelfEmploymentIncome
-      + data.input.otherIncome.interestIncome
-      + data.input.otherIncome.shortTermGains
-      + data.input.otherIncome.longTermGains; // FIXME Not taxed at tax bracket, 15%?
+  // Perform calculations
+  projectJobs(data.input, results);
+  applyRetirementContributionCaps(data.input, results);
+  computeJobTaxableWages(results);
+  aggregateJobTotals(results);
+  calculateOtherIncome(data.input, results);
+  calculateAdjustments(data.input, results);
+  calculateAgi(results);
+  calculateDeductions(data.input, results);
+  calculateTaxes(data.input, results);
+  calculatePayments(results);
+  calculateRefundOrBalance(results);
+  calculateW4Adjustments(data.input, results);
 
-  data.results.selfEmploymentTax =
-        calculateSelfEmploymentTax(data.input.otherIncome.selfEmploymentIncome, data.results.selfGrossWages)
-      + calculateSelfEmploymentTax(data.input.otherIncome.spouseSelfEmploymentIncome, data.results.spouseGrossWages);
+  // Save results
+  data.results = results;
 
-  data.results.selfEmploymentAdjustment = data.results.selfEmploymentTax / 2;
-  data.results.adjustments = data.results.selfEmploymentAdjustment;
-
-  data.results.agi =
-        data.results.totalTaxibleWages
-      + data.results.totalOtherIncome
-      - data.results.adjustments;
-  
-  data.results.standardDeduction = taxData.standardDeduction[data.input.filingStatus];
-
-  const totalSelfEmploymentIncome =
-        data.input.otherIncome.selfEmploymentIncome
-      + data.input.otherIncome.spouseSelfEmploymentIncome;
-  data.results.qbiDeduction = calculateQbiDeduction(totalSelfEmploymentIncome,
-      data.results.selfEmploymentAdjustment);
-
-  data.results.deductions = data.results.standardDeduction + data.results.qbiDeduction;
-  
-  data.results.taxableIncome = Math.max(0, data.results.agi - data.results.deductions);
-  
-  data.results.incomeTax = calculateIncomeTax(
-      data.results.taxableIncome,
-      taxData.brackets[data.input.filingStatus]);
-
-  const investmentIncome =
-        data.input.otherIncome.interestIncome
-      + data.input.otherIncome.shortTermGains
-      + data.input.otherIncome.longTermGains;
-  data.results.netInvestmentIncomeTax = calculateNetInvestmentTaxes(
-      data.input.filingStatus,
-      data.results.agi,
-      investmentIncome);
-
-  data.results.additionalMedicareTax = calculateAdditionalMedicareTax(
-      data.input.filingStatus,
-      data.results.totalMedicareTaxibleWages,
-      data.input.otherIncome.selfEmploymentIncome + data.input.otherIncome.spouseSelfEmploymentIncome);
-
-  data.results.taxesBeforeCredits = data.results.incomeTax
-      + data.results.selfEmploymentTax
-      + data.results.netInvestmentIncomeTax
-      + data.results.additionalMedicareTax;
-
-  data.results.credits = data.input.credits.foreignTaxCredit;
-  
-  data.results.totalTaxes = Math.max(0, data.results.taxesBeforeCredits - data.results.credits);
-  data.results.difference = data.results.totalFedTaxWithheld - data.results.totalTaxes;
-
-  calculateW4Adjustments(data.input.filingStatus);
-
+  // Update UI
   renderResults();
 
+  // Navigate to results page
   navigateToStep(5);
 }
 

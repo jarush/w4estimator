@@ -170,12 +170,12 @@
 
           <div class="mb-3">
             <label class="form-label">Your Self-Employment Income</label>
-            <input type="number" class="form-control" data-bind="input.otherIncome.selfEmploymentIncome">
+            <input type="number" class="form-control" data-bind="input.otherIncome.selfEmploymentIncomeSelf">
           </div>
 
           <div class="mb-3">
             <label class="form-label">Spouse's Self-Employment Income</label>
-            <input type="number" class="form-control" data-bind="input.otherIncome.spouseSelfEmploymentIncome">
+            <input type="number" class="form-control" data-bind="input.otherIncome.selfEmploymentIncomeSpouse">
           </div>
 
           <div class="mb-3">
@@ -274,18 +274,18 @@
 
               <li class="list-group-item d-flex justify-content-between">
                 <span>Total Taxable Wages</span>
-                <span data-bind="results.totalTaxibleWages"></span>
+                <span data-bind="results.totalTaxableWages"></span>
               </li>
               <!-- Expandable Content -->
               <div class="incomeDetails collapse">
-                <template id="taxible-wages-detail-template">
+                <template id="taxable-wages-detail-template">
                   <li class="list-group-item d-flex justify-content-between">
-                    <span class="ms-4">Job {{INDEX}} ({{PERSON}}) Taxible Wages</span>
-                    <span data-bind="results.jobs.{{INDEX}}.taxibleWages"></span>
+                    <span class="ms-4">Job {{INDEX}} ({{PERSON}}) Taxable Wages</span>
+                    <span data-bind="results.jobs.{{INDEX}}.taxableWages"></span>
                   </li>
                 </template>
 
-                <ul class="list-group list-group-flush small" id="taxible-wages-details">
+                <ul class="list-group list-group-flush small" id="taxable-wages-details">
                   <!-- JavaScript injects rows here -->
                 </ul>
               </div>
@@ -299,11 +299,11 @@
                 <ul class="list-group list-group-flush small">
                   <li class="list-group-item d-flex justify-content-between">
                     <span class="ms-4">Your Self-Employment Income</span>
-                    <span data-bind="input.otherIncome.selfEmploymentIncome"></span>
+                    <span data-bind="input.otherIncome.selfEmploymentIncomeSelf"></span>
                   </li>
                   <li class="list-group-item d-flex justify-content-between">
                     <span class="ms-4">Spouse's Self-Employment Income</span>
-                    <span data-bind="input.otherIncome.spouseSelfEmploymentIncome"></span>
+                    <span data-bind="input.otherIncome.selfEmploymentIncomeSpouse"></span>
                   </li>
                   <li class="list-group-item d-flex justify-content-between">
                     <span class="ms-4">Interest Income</span>
@@ -411,8 +411,8 @@
               </li>
 
               <li class="list-group-item d-flex justify-content-between bg-light fw-bold">
-                <span>Total Payments/Withholding</span>
-                <span data-bind="results.taxWithheld"></span>
+                <span>Total Tax Payments</span>
+                <span data-bind="results.totalPayments"></span>
               </li>
             </ul>
           </div>
@@ -430,7 +430,7 @@
               </li>
               <li class="list-group-item d-flex justify-content-between">
                 <span>Step 4(c): Extra Withholding</span>
-                <span data-bind="results.w4WxtraPerCheck"></span>
+                <span data-bind="results.w4ExtraPerCheck"></span>
               </li>
             </ul>
           </div>
