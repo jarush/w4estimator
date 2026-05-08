@@ -12,8 +12,11 @@ const data = {
       selfEmploymentIncomeSelf: null,
       selfEmploymentIncomeSpouse: null,
       interestIncome: null,
+      qualifiedDividends: null,
+      qualifiedReitDividends: null,
       shortTermGains: null,
-      longTermGains: null
+      longTermGains: null,
+      miscIncome: null
     },
 
     credits: {
@@ -25,121 +28,18 @@ const data = {
   }
 };
 
-// 2026 Tax Data (Married Filing Jointly)
-const taxData = {
-  taxYear: 2026,
-
-  // Standard Deduction
-  standardDeduction: {
-    single: 16100,
-    mfj: 32200,
-    mfs: 16100,
-    hoh: 24150
-  },
-
-  // Income Tax Brackets
-  brackets: {
-    single: [
-      { threshold: 0, rate: 0.10 },
-      { threshold: 12400, rate: 0.12 },
-      { threshold: 50400, rate: 0.22 },
-      { threshold: 105700, rate: 0.24 },
-      { threshold: 201775, rate: 0.32 },
-      { threshold: 256225, rate: 0.35 },
-      { threshold: 640600, rate: 0.37 }
-    ],
-    mfj: [
-      { threshold: 0, rate: 0.10 },
-      { threshold: 24800, rate: 0.12 },
-      { threshold: 100800, rate: 0.22 },
-      { threshold: 211400, rate: 0.24 },
-      { threshold: 403550, rate: 0.32 },
-      { threshold: 512450, rate: 0.35 },
-      { threshold: 768700, rate: 0.37 }
-    ],
-    mfs: [
-      { threshold: 0, rate: 0.10 },
-      { threshold: 12400, rate: 0.12 },
-      { threshold: 50400, rate: 0.22 },
-      { threshold: 105700, rate: 0.24 },
-      { threshold: 201775, rate: 0.32 },
-      { threshold: 256225, rate: 0.35 },
-      { threshold: 384350, rate: 0.37 }
-    ],
-    hoh: [
-      { threshold: 0, rate: 0.10 },
-      { threshold: 17700, rate: 0.12 },
-      { threshold: 67450, rate: 0.22 },
-      { threshold: 105700, rate: 0.24 },
-      { threshold: 201750, rate: 0.32 },
-      { threshold: 256200, rate: 0.35 },
-      { threshold: 640600, rate: 0.37 }
-    ]
-  },
-
-  // Capital Gains Tax
-  capitalGains: {
-    single: { "0%": 49450, "15%": 545500 },
-    mfj: { "0%": 98900, "15%": 613700 },
-    mfs: { "0%": 49450, "15%": 306850 },
-    hoh: { "0%": 66200, "15%": 579600 }
-  },
-
-  // Net Investment Income Tax
-  netInvestmentIncomeTax: {
-    threshold: {
-      single: 200000,
-      mfj: 250000,
-      mfs: 125000,
-      hoh: 200000
-    },
-    rate: 0.038
-  },
-
-  // Additional Medicare Tax
-  additionalMedicareTax: {
-    threshold: {
-      single: 200000,
-      mfj: 250000,
-      mfs: 125000,
-      hoh: 200000
-    },
-    rate: 0.009
-  },
-
-  // Self-Employment Tax
-  selfEmploymentTax: {
-    threshold: 400,
-    adjustmentRate: 0.9235,
-    socialSecurityWageBase: 184500,
-    socialSecurityRate: 0.124,
-    medicareRate: 0.029
-  },
-
-  // Qualified Business Income
-  qbi: {
-    rate: 0.20
-  },
-
-  retirementContributionLimits: {
-    base: 24500,
-    standardCatchUp: 8000, // Age 50-59, 64+
-    enhancedCatchUp: 11250 // Age 60-63
-  }
-};
-
 $(document).ready(function() {
   // Navigation
   $(document).on('click', '.btn-nav', function() {
     navigateToStep($(this).data('next'));
   });
 
-  // Data Binding  
+  // Data Binding
   $(document).on('input', '[data-bind]', function () {
     const $element = $(this);
     const path = $element.data('bind');
     const value = parseValue($element);
-    
+
     setModelValue(data, path, value);
 
     // Automatically show/hide things depending on values in the model
@@ -247,7 +147,7 @@ function parseValue($element) {
     return val;
   }
 
-  // Checkbox 
+  // Checkbox
   if (type === 'checkbox') {
     return $element.is(':checked');
   }
@@ -302,7 +202,7 @@ function addJob() {
     currentFedTaxWithheld: null,
     ytdFedTaxWithheld: null,
   });
-  
+
   // Re-render all the jovs
   renderJobs();
 }
@@ -315,7 +215,7 @@ function addJob() {
 function removeJob(index) {
   // Remove the job at the provided index
   data.input.jobs.splice(index, 1);
-  
+
   // Re-render all the jovs
   renderJobs();
 }
@@ -349,14 +249,14 @@ function renderJobs() {
     // Update the DOM visibility from the model
     updateDomVisibilityFromMode($job);
 
-    // Add the job DOM to the container      
+    // Add the job DOM to the container
     $jobs.append($job);
 
     // Get the HTML template, update placeholders, and append
     const grossWagesDetailHtml = $('#gross-wages-detail-template').html();
     const $grossWagesDetail = $(grossWagesDetailHtml.replaceAll('{{INDEX}}', index).replaceAll('{{PERSON}}', job.person));
 
-    // Add the DOM to the container      
+    // Add the DOM to the container
     $grossWagesDetails.append($grossWagesDetail);
 
     // Get the HTML template, update placeholders, and append
@@ -370,7 +270,7 @@ function renderJobs() {
     const taxableWagesDetailHtml = $('#taxable-wages-detail-template').html();
     const $taxableWagesDetail = $(taxableWagesDetailHtml.replaceAll('{{INDEX}}', index).replaceAll('{{PERSON}}', job.person));
 
-    // Add the DOM to the container      
+    // Add the DOM to the container
     $taxableWagesDetails.append($taxableWagesDetail);
   });
 }
@@ -419,16 +319,16 @@ function projectJobs(input, results) {
  */
 function calculateRemainingPaychecks(paycheckDate, paycheckFreq, taxYear) {
   const lastPayDate = new Date(paycheckDate + "T00:00:00Z");
-  
+
   // End of the tax year (Jan 1st of next tax year, to handle an early paycheck)
   const endOfYear = new Date(Date.UTC(taxYear + 1, 0, 1));
-  
+
   // Milliseconds per day
   const msPerDay = 1000 * 60 * 60 * 24;
-  
+
   // Days remaining in the year
   const daysRemaining = Math.max(0, (endOfYear - lastPayDate) / msPerDay);
-  
+
   // Approximate days per pay period
   const periodDaysMap = {52: 7,   // Weekly
                          26: 14,  // Bi-weekly
@@ -436,7 +336,7 @@ function calculateRemainingPaychecks(paycheckDate, paycheckFreq, taxYear) {
                          12: 30   // Monthly
   };
   const daysPerPeriod = periodDaysMap[paycheckFreq] || 14;
-  
+
   // Estimated future paychecks
   return Math.floor(daysRemaining / daysPerPeriod);
 }
@@ -537,7 +437,7 @@ function aggregateJobTotals(results) {
   results.selfSocialSecurityTaxableWages = 0;
   results.spouseSocialSecurityTaxableWages = 0;
   results.totalFedTaxWithheld = 0;
-  
+
   results.jobs.forEach(job => {
     results.totalGrossWages += job.grossWages;
     results.totalPreTaxDeductions += job.preTaxDeductions;
@@ -561,7 +461,8 @@ function calculateOtherIncome(input, results) {
       + (input.otherIncome.selfEmploymentIncomeSpouse || 0)
       + (input.otherIncome.interestIncome || 0)
       + (input.otherIncome.shortTermGains || 0)
-      + (input.otherIncome.longTermGains || 0);
+      + (input.otherIncome.longTermGains || 0)
+      + (input.otherIncome.miscIncome || 0);
 }
 
 /**
@@ -587,17 +488,17 @@ function calculateAdjustments(input, results) {
   const selfEmploymentTaxSpouse = calculateSelfEmploymentTax(
       selfEmploymentIncomeSpouse,
       results.spouseSocialSecurityTaxableWages);
-  
+
   // Total self-employment tax
   results.selfEmploymentTax =
         selfEmploymentTaxSelf
       + selfEmploymentTaxSpouse;
-  
+
   // Half of SE tax is deductible
   results.selfEmploymentAdjustment = results.selfEmploymentTax / 2;
-  
+
   // TODO  Future adjustments can be added here
-  
+
   // Total adjustments to income
   results.adjustments = results.selfEmploymentAdjustment;
 }
@@ -616,15 +517,16 @@ function calculateAgi(results) {
 
 /**
  * Calculates the QBI Deduction.
- * 
+ *
  * Note: This is a simplified calculation that gives an estimate. This function
  * just takes 20% of the Self-Employment income after Self-Employment
  * adjustments, and it ignores various QBI threshold.
  */
-function calculateQbiDeduction(selfEmploymentIncome, selfEmploymentAdjustment) {
+function calculateQbiDeduction(selfEmploymentIncome, qualifiedReitDividends, selfEmploymentAdjustment) {
   // QBI is net business income after adjustments
   const qualifiedBusinessIncome =
         selfEmploymentIncome
+      + qualifiedReitDividends
       - selfEmploymentAdjustment;
 
   return qualifiedBusinessIncome * taxData.qbi.rate;
@@ -643,10 +545,11 @@ function calculateDeductions(input, results) {
   // Qualified Business Income deduction
   results.qbiDeduction = calculateQbiDeduction(
       results.totalSelfEmploymentIncome,
+      input.otherIncome.qualifiedReitDividends,
       results.selfEmploymentAdjustment);
-  
+
   // TODO Future deductions
-  
+
   // Total deductions
   results.deductions =
         results.standardDeduction
@@ -655,7 +558,7 @@ function calculateDeductions(input, results) {
 
 /**
  * Calculates Federal Income Tax.
- * 
+ *
  * @param {number} taxableIncome - Taxable Income (AGI after deductions).
  * @param {number} brackets - Income tax brackets.
  * @returns {number} The calculated Income Tax amount.
@@ -672,9 +575,14 @@ function calculateIncomeTax(taxableIncome, brackets) {
   return tax;
 }
 
+function calculateCapitalGainsTax(capitalGains) {
+  // FIXME this is fixed at 15%
+  return capitalGains * 0.15;
+}
+
 /**
  * Calculates the Net Investment Income Tax (NIIT).
- * 
+ *
  * @param {String} filingStatus - Filing status (single, mfj, mfs, hoh)
  * @param {number} magi - Modified Adjusted Gross Income.
  * @param {number} netInvestmentIncome - Total qualifying investment income.
@@ -693,7 +601,7 @@ function calculateNetInvestmentTaxes(filingStatus, magi, netInvestmentIncome) {
 
 /**
  * Calculates the Additional Medicare Tax.
- * 
+ *
  * @param {String} filingStatus - Filing status (single, mfj, mfs, hoh)
  * @param {number} medicareTaxableWages W-2 wages taxable by medicare
  * @returns {number} The calculated tax amount.
@@ -712,7 +620,7 @@ function calculateAdditionalMedicareTax(filingStatus, medicareTaxableWages, tota
 
 /**
  * Calculates the Self-Employment Tax.
- * 
+ *
  * @param {number} selfEmploymentIncome - Net profit from self-employment
  * @param {number} w2Wages Total W-2 wages earned for the self-employment person
  * @returns {number} The calculated tax amount.
@@ -744,13 +652,22 @@ function calculateSelfEmploymentTax(selfEmploymentIncome, w2Wages = 0) {
  * @param {Object} results - Results model
  */
 function calculateTaxes(input, results) {
-  // Taxable income after deductions
-  results.taxableIncome = Math.max(0, results.agi - results.deductions);
+  // Compute capital gains (taxed differently than income)
+  const capitalGains = input.otherIncome.longTermGains
+      + input.otherIncome.qualifiedDividends;
 
-  // FIXME taxibleIncome includes LTCG, which is taxed differently
+  // Taxable income after deductions
+  results.taxableIncome = Math.max(0,
+        results.agi
+      - results.deductions);
+
   // Ordinary federal income tax
-  results.incomeTax = calculateIncomeTax(results.taxableIncome,
+  results.incomeTax = calculateIncomeTax(
+      results.taxableIncome - capitalGains,
       taxData.brackets[input.filingStatus]);
+
+  // Add capital gains tax
+  results.incomeTax += calculateCapitalGainsTax(capitalGains);
 
   // Investment income subject to NIIT
   const investmentIncome =
@@ -791,7 +708,7 @@ function calculateTaxes(input, results) {
  */
 function calculatePayments(results) {
   // TODO Future payments
-  
+
   results.totalPayments = results.totalFedTaxWithheld;
 }
 
@@ -883,7 +800,7 @@ function calculateW4Adjustments(input, results) {
 
 function calculateResults() {
   const results = {};
-  
+
   // Perform calculations
   projectJobs(data.input, results);
   applyRetirementContributionCaps(data.input, results);
@@ -911,13 +828,13 @@ function calculateResults() {
 /**
  * jQuery Currency Formatter that sets an element's text to a USD formatted
  * currency string.
- * 
+ *
  * @example $('#price').currency(0); // Sets text to "$0.00"
  */
 $.fn.currency = function(value) {
-  const str = Number(value).toLocaleString('en-US', { 
-    style: 'currency', 
-    currency: 'USD' 
+  const str = Number(value).toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD'
   });
   return this.text(str);
 };
@@ -958,7 +875,7 @@ function saveData() {
   const blob = new Blob([json], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `w4-data-${dateStamp}.json`; 
+  a.download = `w4-data-${dateStamp}.json`;
   a.click();
 }
 
@@ -968,8 +885,8 @@ function saveData() {
  * @param {Object} newInput - Parsed JSON data
  */
 function importData(newInput) {
-  Object.assign(data.input, newInput);
-  
+  data.input = newInput;
+
   renderJobs(data);
 
   // Update the DOM from the model

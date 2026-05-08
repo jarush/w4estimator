@@ -8,7 +8,7 @@
   <style>
     .step { display: none; }
     .active-step { display: block !important; }
-    .responsive-card { 
+    .responsive-card {
       /* mobile default override */
       border-width: 0;
       border-radius: 0;
@@ -184,6 +184,16 @@
           </div>
 
           <div class="mb-3">
+            <label class="form-label">Qualified Dividends</label>
+            <input type="number" class="form-control" data-bind="input.otherIncome.qualifiedDividends">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Qualified REIT Dividends</label>
+            <input type="number" class="form-control" data-bind="input.otherIncome.qualifiedReitDividends">
+          </div>
+
+          <div class="mb-3">
             <label class="form-label">Short-Term Capital Gains/Losses</label>
             <input type="number" class="form-control" data-bind="input.otherIncome.shortTermGains">
           </div>
@@ -191,6 +201,11 @@
           <div class="mb-4">
             <label class="form-label">Long-Term Capital Gains/Losses</label>
             <input type="number" class="form-control" data-bind="input.otherIncome.longTermGains">
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label">Miscellaneous Income</label>
+            <input type="number" class="form-control" data-bind="input.otherIncome.miscIncome">
           </div>
 
           <div class="d-flex flex-column flex-sm-row justify-content-sm-between gap-2">
@@ -382,7 +397,7 @@
               <div class="taxDetails collapse">
                 <ul class="list-group list-group-flush small">
                   <li class="list-group-item d-flex justify-content-between">
-                    <span class="ms-4">Taxes on Wages</span>
+                    <span class="ms-4">Income Tax</span>
                     <span data-bind="results.incomeTax"></span>
                   </li>
                   <li class="list-group-item d-flex justify-content-between">
@@ -449,6 +464,7 @@
 
   <script src="jquery-4.0.0.min.js"></script>
   <script src="bootstrap.bundle.min.js"></script>
+  <script src="taxData2026.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
