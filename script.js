@@ -529,7 +529,7 @@ function calculateQbiDeduction(selfEmploymentIncome, qualifiedReitDividends, sel
       + qualifiedReitDividends
       - selfEmploymentAdjustment;
 
-  return qualifiedBusinessIncome * taxData.qbi.rate;
+  return Math.max(0, qualifiedBusinessIncome * taxData.qbi.rate);
 }
 
 /**
@@ -575,9 +575,45 @@ function calculateIncomeTax(taxableIncome, brackets) {
   return tax;
 }
 
-function calculateCapitalGainsTax(capitalGains) {
-  // FIXME this is fixed at 15%
-  return capitalGains * 0.15;
+/**
+ * Calculates long-term capital gains tax.
+ *
+ * @param {Object} capitalGainsBrackets - LTCG bracket thresholds
+ * @param {number} taxableIncome - Total taxable income INCLUDING LTCG
+ * @param {number} capitalGains - Long-term capital gains
+ * @returns {number} Calculated LTCG tax
+ */
+function calculateCapitalGainsTax(capitalGainsBrackets,
+    taxableIncome, capitalGains) {
+  if (capitalGains <= 0) {
+    return 0;
+  }
+
+  // Ordinary taxable income excluding LTCG
+  const ordinaryIncome = Math.max(0, taxableIncome - capitalGains);
+
+  let remainingGains = capitalGains;
+  let tax = 0;
+
+  // 0% bracket
+  const zeroBracketRemaining = Math.max(0,
+      capitalGainsBrackets["0%"] - ordinaryIncome);
+  const gainsAt0 = Math.min(remainingGains, zeroBracketRemaining);
+
+  remainingGains -= gainsAt0;
+
+  // 15% bracket
+  const fifteenBracketRemaining = Math.max(0,
+      capitalGainsBrackets["15%"] - ordinaryIncome - gainsAt0);
+  const gainsAt15 = Math.min(remainingGains, fifteenBracketRemaining);
+  tax += gainsAt15 * 0.15;
+
+  remainingGains -= gainsAt15;
+
+  // 20% bracket
+  tax += remainingGains * 0.20;
+
+  return tax;
 }
 
 /**
@@ -652,9 +688,9 @@ function calculateSelfEmploymentTax(selfEmploymentIncome, w2Wages = 0) {
  * @param {Object} results - Results model
  */
 function calculateTaxes(input, results) {
-  // Compute capital gains (taxed differently than income)
-  const capitalGains = input.otherIncome.longTermGains
-      + input.otherIncome.qualifiedDividends;
+  // Compute long-term capital gains (taxed differently than ordinary income)
+  const longTermGains = (input.otherIncome.longTermGains || 0)
+      + (input.otherIncome.qualifiedDividends || 0);
 
   // Taxable income after deductions
   results.taxableIncome = Math.max(0,
@@ -662,12 +698,17 @@ function calculateTaxes(input, results) {
       - results.deductions);
 
   // Ordinary federal income tax
+  const ordinaryTaxableIncome = Math.max(0,
+      results.taxableIncome - longTermGains);
   results.incomeTax = calculateIncomeTax(
-      results.taxableIncome - capitalGains,
+      ordinaryTaxableIncome,
       taxData.brackets[input.filingStatus]);
 
   // Add capital gains tax
-  results.incomeTax += calculateCapitalGainsTax(capitalGains);
+  results.incomeTax += calculateCapitalGainsTax(
+      taxData.capitalGains[input.filingStatus],
+      results.taxableIncome,
+      longTermGains);
 
   // Investment income subject to NIIT
   const investmentIncome =
