@@ -68,7 +68,7 @@
           </div>
 
           <div class="d-flex flex-column flex-sm-row justify-content-sm-end">
-            <button class="btn btn-primary btn-nav w-sm-auto" data-next="2">Next</button>
+            <button class="btn btn-primary btn-nav" data-next="2">Next</button>
           </div>
         </div>
 
@@ -80,16 +80,18 @@
           <!-- Template Job Entry -->
           <template id="job-template">
             <div class="job border p-3 mb-3 bg-light rounded position-relative">
-              <div class="row g-2">
-                <div class="col-12 col-md-6 d-none" data-show-if="input.filingStatus" data-required-value="mfj">
-                  <label class="form-label">Whose Job?</label>
-                  <select class="form-select" data-bind="input.jobs.{{INDEX}}.person">
-                    <option value="Self">Self</option>
-                    <option value="Spouse">Spouse</option>
-                  </select>
-                </div>
-                <div class="col-12 col-md-6">
-                  <!-- Empty -->
+              <div class="row g-3">
+                <div class="col-12 d-none" data-show-if="input.filingStatus" data-required-value="mfj">
+                  <div class="col-12 col-md-6">
+                    <label class="form-label">Whose Job?</label>
+                    <select class="form-select" data-bind="input.jobs.{{INDEX}}.person">
+                      <option value="Self">Self</option>
+                      <option value="Spouse">Spouse</option>
+                    </select>
+                    </div>
+                  <div class="col-12 col-md-6">
+                    <!-- Empty -->
+                  </div>
                 </div>
 
                 <div class="col-12 col-md-6">
@@ -142,7 +144,7 @@
                   <input type="number" class="form-control" data-bind="input.jobs.{{INDEX}}.ytdFedTaxWithheld">
                 </div>
 
-                <div class="col-24 col-md-12">
+                <div class="col-12">
                   <div class="d-flex flex-column flex-sm-row justify-content-sm-end">
                     <button class="btn btn-sm btn-outline-danger remove-job">Remove Job</button>
                   </div>
@@ -158,8 +160,8 @@
           <button id="btnAddJob" class="btn btn-outline-primary btn-sm mb-3">+ Add Another Job</button>
 
           <div class="d-flex flex-column flex-sm-row justify-content-sm-between gap-2">
-            <button class="btn btn-secondary btn-nav w-sm-auto" data-next="1">Back</button>
-            <button class="btn btn-primary btn-nav w-sm-auto" data-next="3">Next</button>
+            <button class="btn btn-secondary btn-nav" data-next="1">Back</button>
+            <button class="btn btn-primary btn-nav" data-next="3">Next</button>
           </div>
         </div>
 
@@ -209,8 +211,8 @@
           </div>
 
           <div class="d-flex flex-column flex-sm-row justify-content-sm-between gap-2">
-            <button class="btn btn-secondary btn-nav w-sm-auto" data-next="2">Back</button>
-            <button class="btn btn-primary btn-nav w-sm-auto" data-next="4">Next</button>
+            <button class="btn btn-secondary btn-nav" data-next="2">Back</button>
+            <button class="btn btn-primary btn-nav" data-next="4">Next</button>
           </div>
         </div>
 
@@ -225,8 +227,8 @@
           </div>
 
           <div class="d-flex flex-column flex-sm-row justify-content-sm-between gap-2">
-            <button class="btn btn-secondary btn-nav w-sm-auto" data-next="3">Back</button>
-            <button id="btnCalc" class="btn btn-primary w-sm-auto">Calculate Results</button>
+            <button class="btn btn-secondary btn-nav" data-next="3">Back</button>
+            <button id="btnCalc" class="btn btn-primary">Calculate Results</button>
           </div>
         </div>
 
@@ -452,10 +454,10 @@
 
           <div class="d-flex flex-column flex-sm-row justify-content-sm-between gap-2">
             <div class="d-flex flex-column flex-sm-row gap-2">
-              <button class="btn btn-secondary btn-nav w-auto-sm" data-next="4">Back</button>
-              <button class="btn btn-secondary btn-nav w-auto-sm" data-next="1">Start Over</button>
+              <button class="btn btn-secondary btn-nav" data-next="4">Back</button>
+              <button class="btn btn-secondary btn-nav" data-next="1">Start Over</button>
             </div>
-            <button id="btnSaveData" class="btn btn-primary w-auto-sm">Save Data</button>
+            <button id="btnSaveData" class="btn btn-primary">Save Data</button>
           </div>
         </div>
       </div>
