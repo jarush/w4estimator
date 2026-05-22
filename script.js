@@ -617,6 +617,36 @@ function calculateCapitalGainsTax(capitalGainsBrackets,
 }
 
 /**
+ * Calculates total federal income tax, including:
+ * - Ordinary income tax
+ * - Long-term capital gains tax
+ * - Qualified dividend tax
+ *
+ * @param {string} filingStatus - Filing status
+ * @param {number} taxableIncome - Total taxable income
+ * @param {number} longTermGains - LTCG + qualified dividends
+ * @returns {number} Total federal income tax
+ */
+function calculateFederalIncomeTax(filingStatus, taxableIncome, longTermGains) {
+  // Ordinary income is everything except LTCG/qualified dividends
+  const ordinaryTaxableIncome = Math.max(0,
+      taxableIncome - longTermGains);
+
+  // Ordinary income tax
+  const ordinaryIncomeTax = calculateIncomeTax(
+      ordinaryTaxableIncome,
+      taxData.brackets[filingStatus]);
+
+  // LTCG / qualified dividend tax
+  const capitalGainsTax = calculateCapitalGainsTax(
+      taxData.capitalGains[filingStatus],
+      taxableIncome,
+      longTermGains);
+
+  return ordinaryIncomeTax + capitalGainsTax;
+}
+
+/**
  * Calculates the Net Investment Income Tax (NIIT).
  *
  * @param {String} filingStatus - Filing status (single, mfj, mfs, hoh)
@@ -688,27 +718,17 @@ function calculateSelfEmploymentTax(selfEmploymentIncome, w2Wages = 0) {
  * @param {Object} results - Results model
  */
 function calculateTaxes(input, results) {
+  // Taxable income (e.g., AGI - Deductions)
+  results.taxableIncome = Math.max(0, results.agi - results.deductions);
+
   // Compute long-term capital gains (taxed differently than ordinary income)
-  const longTermGains = (input.otherIncome.longTermGains || 0)
+  const longTermGains =
+        (input.otherIncome.longTermGains || 0)
       + (input.otherIncome.qualifiedDividends || 0);
 
-  // Taxable income after deductions
-  results.taxableIncome = Math.max(0,
-        results.agi
-      - results.deductions);
-
-  // Ordinary federal income tax
-  const ordinaryTaxableIncome = Math.max(0,
-      results.taxableIncome - longTermGains);
-  results.incomeTax = calculateIncomeTax(
-      ordinaryTaxableIncome,
-      taxData.brackets[input.filingStatus]);
-
-  // Add capital gains tax
-  results.incomeTax += calculateCapitalGainsTax(
-      taxData.capitalGains[input.filingStatus],
-      results.taxableIncome,
-      longTermGains);
+  // Compute federal income tax (ordinary income tax + LTCG tax)
+  results.incomeTax = calculateFederalIncomeTax(input.filingStatus,
+      results.taxableIncome, longTermGains);
 
   // Investment income subject to NIIT
   const investmentIncome =
@@ -782,36 +802,50 @@ function calculateW4Adjustments(input, results) {
 
   // If there are no paychecks remaining, we can't calculate W4 withholding
   if (primaryResultJob.paychecksRemaining <= 0) {
-    results.w4ExtraPerCheck = 0;
+    results.withholdingOtherIncome = 0;
+    results.withholdingExtraPerCheck = 0;
     return;
   }
 
-  // Determine deductions and withholding tables
-  let standardDeduction = taxData.standardDeduction[input.filingStatus];
-  let brackets = taxData.brackets[input.filingStatus];
+  // Other income to include in taxible income for withholding calculation
+  results.withholdingOtherIncome =
+        (input.otherIncome.selfEmploymentIncomeSelf || 0)
+      + (input.otherIncome.selfEmploymentIncomeSpouse || 0)
+      + (input.otherIncome.interestIncome || 0)
+      + (input.otherIncome.shortTermGains || 0)
+      + (input.otherIncome.miscIncome || 0);
 
-  // If there are more than 1 job, switch to MFS info
+  // Determine withholding filing status
+  let filingStatus = input.filingStatus;
+  
+  // Multiple jobs checkbox behavior approximated using MFS
   if (input.jobs.length > 1) {
-    standardDeduction = taxData.standardDeduction.mfs;
-    brackets = taxData.brackets.mfs;
+    filingStatus = "mfs";
   }
 
-  /*
-   * Estimate withholding for the primary job
-   * using annualized wages.
-   */
-  const estimatedAnnualWithholding =
-      calculateIncomeTax(
-          Math.max(0, primaryResultJob.taxableWages + results.totalOtherIncome - standardDeduction),
-          brackets
-      );
-  const estimatedPerPaycheckWithholding =
-      estimatedAnnualWithholding / primaryInputJob.paycheckFreq;
+  // Calculate the per paycheck taxible wages
+  const paycheckTaxableWages =
+        primaryInputJob.currentGrossWages
+      - primaryInputJob.currentPreTaxRetirementDeductions
+      - primaryInputJob.currentPreTaxMedicalDeductions;
 
-  /*
-   * Project total withholding if Job 1
-   * switches to this new withholding level.
-   */
+  // Compute the annualized income, including the extra withholding income
+  const annualizedIncome =
+        (paycheckTaxableWages * primaryInputJob.paycheckFreq)
+      + results.withholdingOtherIncome;
+
+  // Subtract off the standard deduction
+  const annualizedTaxableIncome = Math.max(0,
+      annualizedIncome - taxData.standardDeduction[filingStatus]);
+
+  // Compute the new annual tax withheld
+  const annualizedTax =
+      calculateIncomeTax(
+          annualizedTaxableIncome, taxData.brackets[filingStatus]);
+
+  // Calculate how much tax is withheld per paycheck
+  const withholdingPerPaycheck =
+      annualizedTax / primaryInputJob.paycheckFreq;
 
   // Existing withholding from all other jobs
   let projectedOtherJobWithholding = 0;
@@ -821,7 +855,7 @@ function calculateW4Adjustments(input, results) {
 
   // Replace future withholding for Job 1
   const futurePrimaryWithholding =
-      estimatedPerPaycheckWithholding * primaryResultJob.paychecksRemaining;
+      withholdingPerPaycheck * primaryResultJob.paychecksRemaining;
 
   const alreadyWithheldPrimary = primaryResultJob.fedTaxWithheld
       - (primaryInputJob.currentFedTaxWithheld
@@ -835,8 +869,8 @@ function calculateW4Adjustments(input, results) {
   // Calculate the gap between projected withholding and total taxes owed
   const annualGap = results.totalTaxes - projectedTotalWithholding;
 
-  results.w4ExtraPerCheck = Math.max(0,
-      Math.ceil(annualGap / primaryResultJob.paychecksRemaining));
+  results.withholdingExtraPerCheck = Math.max(0,
+      annualGap / primaryResultJob.paychecksRemaining);
 }
 
 function calculateResults() {
