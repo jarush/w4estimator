@@ -35,8 +35,24 @@ $(document).ready(function() {
   });
 
   // Data Binding
-  $(document).on('input', '[data-bind]', function () {
+  $(document).on('blur change', '[data-bind]', function (e) {
     const $element = $(this);
+    const type = $element.attr('type');
+    const tag = $element.prop('tagName').toLowerCase();
+
+    // Prevent double-firing
+    if (tag === 'select' || type === 'checkbox' || type === 'radio') {
+      // Select, chackbox, and radio shouldn't trigger on blue
+      if (e.type === 'blur') {
+        return;
+      }
+    } else {
+      // Text shouldn't trigger on change
+      if (e.type === 'change') {
+        return;
+      }
+    }
+
     const path = $element.data('bind');
     const value = parseValue($element);
 
@@ -157,6 +173,31 @@ function parseValue($element) {
     return val === '' ? 0 : Number(val);
   }
 
+  // Special currency 
+  if (type === 'text' && $element.hasClass('currency')) {
+    if (val === '') {
+      $element.val('0.00');
+      return 0;
+    }
+
+    // Allow only numbers, decimals, and basic math operators (+, -, *, /, parentheses)
+    let sanitizedVal = val.replace(/[^0-9+\-*/.]/g, '');
+    try {
+      // Evaluate the input (allows math in the text input)
+      let result = new Function(`return (${sanitizedVal})`)();
+      if (!isNaN(result) && isFinite(result)) {
+        let numVal = Number(result);
+        $element.val(numVal.toFixed(2));
+        return numVal;
+      }
+    } catch (e) {
+      // Ignore invalid syntax
+    }
+
+    $element.val('0.00');
+    return 0;
+  }
+
   // Default to a string
   return val;
 }
@@ -169,7 +210,11 @@ function updateDomFromModel($element) {
 
     const value = getModelValue(data, path);
     if (value !== undefined && value !== null) {
-      $element.val(value);
+      if ($element.hasClass('currency')) {
+        $element.val(value.toFixed(2));
+      } else {
+        $element.val(value);
+      }
     }
   });
 }
@@ -230,6 +275,7 @@ function renderJobs() {
   const $grossWagesDetails = $('#gross-wages-details');
   const $preTaxDeductionsDetails = $('#pre-tax-deductions-details');
   const $taxableWagesDetails = $('#taxable-wages-details');
+  const $fedTaxesWithheldDetails = $('#fed-taxes-withheld-details');
 
   // Clear all the containers before rendering
   $jobs.empty();
@@ -272,6 +318,13 @@ function renderJobs() {
 
     // Add the DOM to the container
     $taxableWagesDetails.append($taxableWagesDetail);
+
+    // Get the HTML template, update placeholders, and append
+    const fedTaxesWithheldDetailHtml = $('#fed-taxes-withheld-detail-template').html();
+    const $fedTaxesWithheldDetail = $(fedTaxesWithheldDetailHtml.replaceAll('{{INDEX}}', index).replaceAll('{{PERSON}}', job.person));
+
+    // Add the DOM to the container
+    $fedTaxesWithheldDetails.append($fedTaxesWithheldDetail);
   });
 }
 
@@ -310,7 +363,7 @@ function projectJobs(input, results) {
 }
 
 /**
- * Estimates remaining paychecks for the tax year.
+ * Calculates the number of remaining paychecks for the tax year.
  *
  * @param {string} paycheckDate - Most recent paycheck date (ISO string)
  * @param {number} paycheckFreq - Annual paycheck frequency
@@ -871,6 +924,8 @@ function calculateW4Adjustments(input, results) {
 
   results.withholdingExtraPerCheck = Math.max(0,
       annualGap / primaryResultJob.paychecksRemaining);
+  results.newWithholdingPerCheck =
+      withholdingPerPaycheck + results.withholdingExtraPerCheck;
 }
 
 function calculateResults() {

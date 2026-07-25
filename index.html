@@ -110,38 +110,38 @@
 
                 <div class="col-12 col-md-6">
                   <label class="form-label">Current Gross Wages</label>
-                  <input type="number" class="form-control" data-bind="input.jobs.{{INDEX}}.currentGrossWages">
+                  <input type="text" class="form-control currency" data-bind="input.jobs.{{INDEX}}.currentGrossWages">
                 </div>
                 <div class="col-12 col-md-6">
                   <label class="form-label">YTD Gross Wages</label>
-                  <input type="number" class="form-control" data-bind="input.jobs.{{INDEX}}.ytdGrossWages">
+                  <input type="text" class="form-control currency" data-bind="input.jobs.{{INDEX}}.ytdGrossWages">
                 </div>
 
                 <div class="col-12 col-md-6">
                   <label class="form-label">Current Pre-Tax Retirement Deductions</label>
-                  <input type="number" class="form-control" data-bind="input.jobs.{{INDEX}}.currentPreTaxRetirementDeductions">
+                  <input type="text" class="form-control currency" data-bind="input.jobs.{{INDEX}}.currentPreTaxRetirementDeductions">
                 </div>
                 <div class="col-12 col-md-6">
                   <label class="form-label">YTD Pre-Tax Retirement Deductions</label>
-                  <input type="number" class="form-control" data-bind="input.jobs.{{INDEX}}.ytdPreTaxRetirementDeductions">
+                  <input type="text" class="form-control currency" data-bind="input.jobs.{{INDEX}}.ytdPreTaxRetirementDeductions">
                 </div>
 
                 <div class="col-12 col-md-6">
                   <label class="form-label">Current Pre-Tax Medical Deductions</label>
-                  <input type="number" class="form-control" data-bind="input.jobs.{{INDEX}}.currentPreTaxMedicalDeductions">
+                  <input type="text" class="form-control currency" data-bind="input.jobs.{{INDEX}}.currentPreTaxMedicalDeductions">
                 </div>
                 <div class="col-12 col-md-6">
                   <label class="form-label">YTD Pre-Tax Medical Deductions</label>
-                  <input type="number" class="form-control" data-bind="input.jobs.{{INDEX}}.ytdPreTaxMedicalDeductions">
+                  <input type="text" class="form-control currency" data-bind="input.jobs.{{INDEX}}.ytdPreTaxMedicalDeductions">
                 </div>
 
                 <div class="col-12 col-md-6">
                   <label class="form-label">Current Fed Tax Withheld</label>
-                  <input type="number" class="form-control" data-bind="input.jobs.{{INDEX}}.currentFedTaxWithheld">
+                  <input type="text" class="form-control currency" data-bind="input.jobs.{{INDEX}}.currentFedTaxWithheld">
                 </div>
                 <div class="col-12 col-md-6">
                   <label class="form-label">YTD Fed Tax Withheld</label>
-                  <input type="number" class="form-control" data-bind="input.jobs.{{INDEX}}.ytdFedTaxWithheld">
+                  <input type="text" class="form-control currency" data-bind="input.jobs.{{INDEX}}.ytdFedTaxWithheld">
                 </div>
 
                 <div class="col-12">
@@ -172,42 +172,42 @@
 
           <div class="mb-3">
             <label class="form-label">Your Self-Employment Income</label>
-            <input type="number" class="form-control" data-bind="input.otherIncome.selfEmploymentIncomeSelf">
+            <input type="text" class="form-control currency" data-bind="input.otherIncome.selfEmploymentIncomeSelf">
           </div>
 
           <div class="mb-3">
             <label class="form-label">Spouse's Self-Employment Income</label>
-            <input type="number" class="form-control" data-bind="input.otherIncome.selfEmploymentIncomeSpouse">
+            <input type="text" class="form-control currency" data-bind="input.otherIncome.selfEmploymentIncomeSpouse">
           </div>
 
           <div class="mb-3">
             <label class="form-label">Interest / Ordinary Dividends</label>
-            <input type="number" class="form-control" data-bind="input.otherIncome.interestIncome">
+            <input type="text" class="form-control currency" data-bind="input.otherIncome.interestIncome">
           </div>
 
           <div class="mb-3">
             <label class="form-label">Qualified Dividends</label>
-            <input type="number" class="form-control" data-bind="input.otherIncome.qualifiedDividends">
+            <input type="text" class="form-control currency" data-bind="input.otherIncome.qualifiedDividends">
           </div>
 
           <div class="mb-3">
             <label class="form-label">Qualified REIT Dividends</label>
-            <input type="number" class="form-control" data-bind="input.otherIncome.qualifiedReitDividends">
+            <input type="text" class="form-control currency" data-bind="input.otherIncome.qualifiedReitDividends">
           </div>
 
           <div class="mb-3">
             <label class="form-label">Short-Term Capital Gains/Losses</label>
-            <input type="number" class="form-control" data-bind="input.otherIncome.shortTermGains">
+            <input type="text" class="form-control currency" data-bind="input.otherIncome.shortTermGains">
           </div>
 
           <div class="mb-4">
             <label class="form-label">Long-Term Capital Gains/Losses</label>
-            <input type="number" class="form-control" data-bind="input.otherIncome.longTermGains">
+            <input type="text" class="form-control currency" data-bind="input.otherIncome.longTermGains">
           </div>
 
           <div class="mb-4">
             <label class="form-label">Miscellaneous Income</label>
-            <input type="number" class="form-control" data-bind="input.otherIncome.miscIncome">
+            <input type="text" class="form-control currency" data-bind="input.otherIncome.miscIncome">
           </div>
 
           <div class="d-flex flex-column flex-sm-row justify-content-sm-between gap-2">
@@ -223,7 +223,7 @@
 
           <div class="mb-3">
             <label class="form-label">Foreign Tax Credit</label>
-            <input type="number" class="form-control" data-bind="input.credits.foreignTaxCredit">
+            <input type="text" class="form-control currency" data-bind="input.credits.foreignTaxCredit">
           </div>
 
           <div class="d-flex flex-column flex-sm-row justify-content-sm-between gap-2">
@@ -303,6 +303,24 @@
                 </template>
 
                 <ul class="list-group list-group-flush small" id="taxable-wages-details">
+                  <!-- JavaScript injects rows here -->
+                </ul>
+              </div>
+
+              <li class="list-group-item d-flex justify-content-between">
+                <span>Total Federal Taxes Withheld</span>
+                <span data-bind="results.totalFedTaxWithheld"></span>
+              </li>
+              <!-- Expandable Content -->
+              <div class="incomeDetails collapse">
+                <template id="fed-taxes-withheld-detail-template">
+                  <li class="list-group-item d-flex justify-content-between">
+                    <span class="ms-4">Job {{INDEX}} ({{PERSON}}) Federal Taxes Withheld</span>
+                    <span data-bind="results.jobs.{{INDEX}}.fedTaxWithheld"></span>
+                  </li>
+                </template>
+
+                <ul class="list-group list-group-flush small" id="fed-taxes-withheld-details">
                   <!-- JavaScript injects rows here -->
                 </ul>
               </div>
@@ -448,6 +466,10 @@
               <li class="list-group-item d-flex justify-content-between">
                 <span>Step 4(c): Extra Withholding</span>
                 <span data-bind="results.withholdingExtraPerCheck"></span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between">
+                <span>New Withholding/Check</span>
+                <span data-bind="results.newWithholdingPerCheck"></span>
               </li>
             </ul>
           </div>
