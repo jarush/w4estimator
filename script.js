@@ -248,7 +248,7 @@ function addJob() {
     ytdFedTaxWithheld: null,
   });
 
-  // Re-render all the jovs
+  // Re-render all the jobs
   renderJobs();
 }
 
@@ -282,6 +282,7 @@ function renderJobs() {
   $grossWagesDetails.empty();
   $preTaxDeductionsDetails.empty();
   $taxableWagesDetails.empty();
+  $fedTaxesWithheldDetails.empty();
 
   // Add all the jobs to the container
   data.input.jobs.forEach((job, index) => {
